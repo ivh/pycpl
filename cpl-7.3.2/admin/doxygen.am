@@ -1,0 +1,96 @@
+DOXYGEN_BUILD_DIR = $(top_builddir)
+
+if MAINTAINER_MODE
+
+DOXYGEN_RECURSIVE_TARGETS = install-doxygen-recursive
+
+doxygen: doxygen-am
+
+doxygen-am: Doxyfile
+	@if test -f $(DOXYGEN_BUILD_DIR)/Doxyfile; then \
+	  echo "cd $(DOXYGEN_BUILD_DIR) && $(DOXYGEN)"; \
+	  d=`pwd`; cd $(DOXYGEN_BUILD_DIR) && $(DOXYGEN); cd $$d; \
+	  if test -n "$(POST_DOXYGEN_CLEANFILES)"; then \
+	    cd $(DOXYGEN_BUILD_DIR)/html && rm -f $(POST_DOXYGEN_CLEANFILES); \
+	  fi; \
+	else \
+	  echo "Nothing to be done for \`$@'."; \
+	fi
+
+clean-doxygen: clean-doxygen-am
+
+clean-doxygen-am:
+	-rm -rf $(DOXYGEN_BUILD_DIR)/html
+
+DOXYGEN_INSTALL_TARGETS = doxygen-am install-doxygen-generic
+
+else
+
+DOXYGEN_RECURSIVE_TARGETS = install-doxygen-recursive
+DOXYGEN_INSTALL_TARGETS = install-doxygen-generic
+
+endif
+
+install-doxygen: install-doxygen-recursive
+install-doxygen-am: $(DOXYGEN_INSTALL_TARGETS)
+
+install-doxygen-generic:
+	@$(NORMAL_INSTALL)
+	@if test -d $(DOXYGEN_BUILD_DIR)/html; then \
+	  echo "$(mkinstalldirs) $(DESTDIR)$(apidocdir)"; \
+	  $(mkinstalldirs) $(DESTDIR)$(apidocdir) || exit 1; \
+	  basedirstrip=`echo "$(DOXYGEN_BUILD_DIR)/html" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
+	  list="`find $(DOXYGEN_BUILD_DIR)/html -type f`"; \
+	  docfiles="`for f in $$list; do echo $$f; done | sed -e \"s|^$$basedirstrip/||;t\"`"; \
+	  case $$docfiles in \
+	    */*) $(mkinstalldirs) `echo "$$docfiles" | \
+	             sed '/\//!d;s|^|$(DESTDIR)$(apidocdir)/|;s,/[^/]*$$,,' | \
+	             sort -u` ;; \
+	  esac; \
+	  for p in $$docfiles; do \
+	    if test -f $(DOXYGEN_BUILD_DIR)/html/$$p; then \
+	      echo " $(INSTALL_DATA) $(DOXYGEN_BUILD_DIR)/html/$$p $(DESTDIR)$(apidocdir)/$$p"; \
+	      $(INSTALL_DATA) $(DOXYGEN_BUILD_DIR)/html/$$p $(DESTDIR)$(apidocdir)/$$p; \
+	    else if test -f $$p; then \
+	      echo " $(INSTALL_DATA) $$p $(DESTDIR)$(apidocdir)/$$p"; \
+	      $(INSTALL_DATA) $$p $(DESTDIR)$(apidocdir)/$$p; \
+	    fi; fi; \
+	  done; \
+	fi
+
+uninstall-doxygen:
+	@$(NORMAL_UNINSTALL)
+	@if test -d $(DESTDIR)$(apidocdir); then \
+	  list="`ls -1 $(DESTDIR)$(apidocdir)`"; \
+	  for p in $$list; do \
+ 	    if test -d $(DESTDIR)$(apidocdir)/$$p; then \
+	      echo " rm -rf $(DESTDIR)$(apidocdir)/$$p"; \
+	      rm -rf $(DESTDIR)$(apidocdir)/$$p; \
+	    else \
+	      echo " rm -f $(DESTDIR)$(apidocdir)/$$p"; \
+	      rm -f $(DESTDIR)$(apidocdir)/$$p; \
+	    fi; \
+	  done; \
+	else \
+	  echo "Nothing to be done for \`$@'."; \
+	fi
+
+$(DOXYGEN_RECURSIVE_TARGETS):
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(DOXYGEN_SUBDIRS)'; \
+	for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	  || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"

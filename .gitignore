@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Testing
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# C/C++ build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.i
+*.s
+*.lo
+*.la
+*.lai
+*.mod
+*.smod
+
+# Autotools (keep configure scripts from source distributions)
+autom4te.cache/
+config.log
+config.status
+.deps/
+.libs/
+libtool
+stamp-h1
+ltmain.sh
+*.m4
+!m4/
+
+# Build directories
+build/
+dist/
+_build/
+*.build/
+install/
+
+# Documentation builds (generated HTML docs)
+docs/_build/
+**/html/
+**/doc/
+**/docs/
+*.pdf
+*.ps
+*.dvi
+*.tex
+*.info
+*.info-*
+texinfo.tex
+
+# Archives and compressed files
+*.tar.gz
+*.tgz
+*.zip
+*.bz2
+*.xz
+
+# FITS test files (can be large)
+*.fits
+*.fit
+
+# Generated C files from flex/bison
+**/flexed/*.c
+**/flexed/*.h
+
+# Backup files
+*.bak
+*.orig
+*.rej
+
+# Changelog files (can be very large)
+ChangeLog
+CHANGES

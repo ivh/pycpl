@@ -1,0 +1,39 @@
+Release 1.2.6 (2023-04-14):
+---------------------------
+ * Build system update: avoid configure tests to appear failing because of
+   recent compilers bailing out on prototypes in autoconf generated test code.
+ * Updated fallback vsnprintf implementation to fix an overflow error that
+   can occur in rare cases.
+ * Added macros ESO_ENABLE_TSAN() and ESO_ENABLE_ASAN() to support building
+   with sanitizer support.
+
+Release 1.2.5 (2023-04-03):
+---------------------------
+ * Build system fixes and improvements.
+
+Release 1.2.4 (2020-04-14):
+---------------------------
+ * Minor reference documentation fixes.
+
+Release 1.2.3 (2019-02-18):
+---------------------------
+ * Build system updates.
+ * eso.m4: removed definition of symbol 'strdup' from ESO_FUNC_STRDUP() if it
+   is not found on the system. This makes the macro a pure test and the
+   caller is responsible for acting on the result.
+ * Cleanup of compiler warnings.
+
+Release 1.2.2 (2017-11-21):
+---------------------------
+ * Reference documentation updates.
+ * Build system updates.
+ * Cleanup of compiler warnings in unit tests.
+
+Release 1.2.1 (2015-07-20):
+---------------------------
+ * cx_deque, cxutils.c: Bug fixes.
+
+Release 1.2 (2015-03-06):
+-------------------------
+ * cx_string: New functions added.
+ * Minor documentation cleanup.  
