@@ -243,6 +243,8 @@ class CMakeBuildExt(build_ext):
 
         # CPL uses autoconf and needs to find the dependencies
         env = os.environ.copy()
+        # Prevent Java from being found to avoid building cpljava
+        env.pop("JAVA_HOME", None)
         env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")
         env["CFITSIO_CFLAGS"] = f"-I{install_dir / 'include'}"
         env["CFITSIO_LIBS"] = f"-L{install_dir / 'lib'} -lcfitsio"
