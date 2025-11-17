@@ -12,3 +12,19 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=70", "wheel", "pybind11", "cmake"]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build = ["cp311-*", "cp312-*", "cp313-*"]
+skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
+build-verbosity = 1
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+before-build = "yum install -y autoconf automake libtool"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+before-build = "brew install autoconf automake libtool"
+
+[tool.cibuildwheel.environment]
+CMAKE_BUILD_PARALLEL_LEVEL = "4"
