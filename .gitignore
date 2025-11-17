@@ -68,9 +68,6 @@ config.status
 .libs/
 libtool
 stamp-h1
-ltmain.sh
-*.m4
-!m4/
 
 # Build directories
 build/
@@ -103,10 +100,6 @@ texinfo.tex
 *.fits
 *.fit
 
-# Generated C files from flex/bison
-**/flexed/*.c
-**/flexed/*.h
-
 # Backup files
 *.bak
 *.orig
@@ -114,4 +107,3 @@ texinfo.tex
 
 # Changelog files (can be very large)
 ChangeLog
-CHANGES
