@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import multiprocessing
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pybind11
@@ -75,10 +76,29 @@ class CMakeBuildExt(build_ext):
         # Number of parallel jobs
         njobs = os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL") or str(multiprocessing.cpu_count())
 
-        # Build each dependency in order
-        self._build_cfitsio(vendor_dir, deps_build_dir, deps_install_dir, njobs)
-        self._build_fftw(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+        # Build dependencies with parallelization where possible
+        # Phase 1: Build cfitsio and fftw in parallel (independent)
+        print("\n>>> Phase 1: Building cfitsio and fftw in parallel...")
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_cfitsio = executor.submit(
+                self._build_cfitsio, vendor_dir, deps_build_dir, deps_install_dir, njobs
+            )
+            future_fftw = executor.submit(
+                self._build_fftw, vendor_dir, deps_build_dir, deps_install_dir, njobs
+            )
+
+            # Wait for both to complete and handle any errors
+            for future in as_completed([future_cfitsio, future_fftw]):
+                future.result()  # Will raise exception if build failed
+
+        print(">>> Phase 1 complete: cfitsio and fftw built successfully")
+
+        # Phase 2: Build wcslib (depends on cfitsio)
+        print("\n>>> Phase 2: Building wcslib...")
         self._build_wcslib(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+
+        # Phase 3: Build cpl (depends on all three)
+        print("\n>>> Phase 3: Building cpl...")
         self._build_cpl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
 
         # Set CPLDIR environment variable so FindCPL.cmake can find it
@@ -278,6 +298,41 @@ class CMakeBuildExt(build_ext):
                 check=True,
             )
 
+    def _copy_vendored_libraries(self, extdir: Path) -> None:
+        """Copy vendored shared libraries alongside the extension module."""
+        import shutil
+        import glob
+
+        deps_install_dir = Path(self.build_temp).resolve() / "deps" / "install"
+        lib_dir = deps_install_dir / "lib"
+
+        if not lib_dir.exists():
+            print(f"Warning: Library directory {lib_dir} does not exist")
+            return
+
+        extdir = Path(extdir).resolve()
+        extdir.mkdir(parents=True, exist_ok=True)
+
+        if sys.platform == "darwin":
+            lib_pattern = "*.dylib"
+        else:
+            lib_pattern = "*.so*"
+
+        print(f"\nCopying vendored libraries from {lib_dir} to {extdir}")
+        for lib_file in glob.glob(str(lib_dir / lib_pattern)):
+            lib_path = Path(lib_file)
+            if lib_path.is_file() and not lib_path.is_symlink():
+                dest = extdir / lib_path.name
+                print(f"  Copying {lib_path.name}")
+                shutil.copy2(lib_path, dest)
+            elif lib_path.is_symlink():
+                dest = extdir / lib_path.name
+                link_target = os.readlink(lib_path)
+                if dest.exists() or dest.is_symlink():
+                    dest.unlink()
+                os.symlink(link_target, dest)
+                print(f"  Creating symlink {lib_path.name} -> {link_target}")
+
     def build_extension(self, ext: CMakeExtension) -> None:
         # CAUTION: Using extdir requires trailing slash for auto-detection &
         # inclusion of auxiliary "native" libs
@@ -352,8 +407,13 @@ class CMakeBuildExt(build_ext):
             ["cmake", "--build", ".", *build_args], cwd=build_temp, check=True
         )
 
+        # Copy vendored libraries alongside the extension
+        self._copy_vendored_libraries(extdir)
+
 
 setup(
     ext_modules=[CMakeExtension("cpl")],
     cmdclass={"build_ext": CMakeBuildExt},
+    package_data={"": ["*.so", "*.so.*", "*.dylib"]},
+    include_package_data=True,
 )
