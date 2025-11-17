@@ -43,14 +43,36 @@ bind_plugin(py::module& m)
   py::register_exception<cpl::ui::RecipeNotFoundException>(
       m, "RecipeNotFoundException");
 
+  // Try to set a sensible default recipe directory at runtime
+  // Priority: 1) PYCPL_RECIPE_DIR env var, 2) sys.prefix/lib/esopipes-plugins, 3) empty
   try {
-    // The default recipe dir is expected to be provided through the
-    // preprocessor symbol PYCPL_RECIPE_DIR, configured in the build system
-    std::vector<std::string> default_dir = {std::string(PYCPL_RECIPE_DIR)};
-    cpl::ui::CRecipe::set_recipe_dir(default_dir);
+    py::object sys = py::module::import("sys");
+    py::object os = py::module::import("os");
+
+    std::vector<std::string> default_dirs;
+
+    // First, check environment variable
+    if (py::hasattr(os.attr("environ"), "get")) {
+      py::object env_dir = os.attr("environ").attr("get")("PYCPL_RECIPE_DIR");
+      if (!env_dir.is_none()) {
+        default_dirs.push_back(env_dir.cast<std::string>());
+      }
+    }
+
+    // Then try sys.prefix/lib/esopipes-plugins (common for conda/pip installs)
+    std::string prefix = sys.attr("prefix").cast<std::string>();
+    std::filesystem::path plugin_dir = std::filesystem::path(prefix) / "lib" / "esopipes-plugins";
+    if (std::filesystem::exists(plugin_dir)) {
+      default_dirs.push_back(plugin_dir.string());
+    }
+
+    // Only set if we found at least one valid directory
+    if (!default_dirs.empty()) {
+      cpl::ui::CRecipe::set_recipe_dir(default_dirs);
+    }
   }
-  catch (const std::filesystem::filesystem_error& bad_recipe_dir) {
-    // Silently ignore - the build-time path may not exist at runtime
+  catch (const std::exception& e) {
+    // Silently ignore any errors - users can set recipe_dir manually if needed
   }
 
   py::class_<cpl::ui::CRecipe, std::shared_ptr<cpl::ui::CRecipe>> crecipe(
