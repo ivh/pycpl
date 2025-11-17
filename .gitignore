@@ -107,3 +107,5 @@ texinfo.tex
 
 # Changelog files (can be very large)
 ChangeLog
+CHANGES
+*.log

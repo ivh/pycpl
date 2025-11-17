@@ -4,6 +4,7 @@ global-include CMakeLists.txt *.cmake .clang-format
 recursive-include src *
 recursive-include tests *.py *.sof *.fits
 recursive-include docs Makefile *.rst *.css *.svg *.ico *.png *.html *.py *.txt
+recursive-include vendor *
 prune docs/_build
 exclude docs/_static/pycpl-logo.png
 global-exclude .DS_Store desktop.ini *.xcf *.py[cod]
