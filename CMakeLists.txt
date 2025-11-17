@@ -45,7 +45,7 @@ list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig)
 find_package(CPL "7.2" REQUIRED COMPONENTS cplcore cplui cpldfs cpldrs)
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 REQUIRED)
 
 if(NOT DEFINED PYCPL_RECIPE_DIR)
