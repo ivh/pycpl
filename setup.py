@@ -126,6 +126,13 @@ class CMakeBuildExt(build_ext):
 
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_subdir, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_subdir, check=True)
+
+        # Fix install names on macOS
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            ["libcfitsio.10.dylib"],
+        )
+
         print(">>> cfitsio built successfully")
 
     def _build_fftw(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
@@ -232,6 +239,13 @@ class CMakeBuildExt(build_ext):
         if (src_dir / "wcslib.pc").exists():
             import shutil
             shutil.copy(src_dir / "wcslib.pc", pkgconfig_dir / "wcslib.pc")
+
+        # Fix install names on macOS
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            ["libwcs.8.dylib"],
+        )
+
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> wcslib built successfully")
@@ -287,20 +301,34 @@ class CMakeBuildExt(build_ext):
 
         subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
         subprocess.run(["make", "install"], cwd=src_dir, check=True)
+
+        # Fix install names on macOS for all CPL libraries
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            [
+                "libcext.0.dylib",
+                "libcplcore.26.dylib",
+                "libcplui.26.dylib",
+                "libcpldfs.26.dylib",
+                "libcpldrs.26.dylib",
+            ],
+        )
+
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> CPL built successfully")
 
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
-        """Ensure macOS dylibs advertise an absolute install name so dlopen works without rpath."""
+        """Fix macOS dylib install names to use @rpath so they can be relocated."""
         if sys.platform != "darwin":
             return
         for name in libraries:
             dylib = lib_dir / name
             if not dylib.exists():
                 continue
+            # Set install name to @rpath/libname so it can be found via RPATH
             subprocess.run(
-                ["install_name_tool", "-id", str(dylib), str(dylib)],
+                ["install_name_tool", "-id", f"@rpath/{name}", str(dylib)],
                 check=True,
             )
 
