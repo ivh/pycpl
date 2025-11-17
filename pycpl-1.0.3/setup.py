@@ -108,13 +108,15 @@ class CMakeBuildExt(build_ext):
         print(">>> cfitsio built successfully")
 
     def _build_fftw(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
-        """Build fftw library"""
+        """Build fftw library (both double and single precision)"""
         print("\n>>> Building fftw...")
         src_dir = vendor_dir / "fftw-3.3.10"
-        build_subdir = build_dir / "fftw-build"
-        build_subdir.mkdir(parents=True, exist_ok=True)
 
-        # Use CMake for fftw
+        # Build double precision (default)
+        print(">>> Building fftw (double precision)...")
+        build_double = build_dir / "fftw-build-double"
+        build_double.mkdir(parents=True, exist_ok=True)
+
         subprocess.run([
             "cmake",
             str(src_dir),
@@ -122,11 +124,28 @@ class CMakeBuildExt(build_ext):
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_SHARED_LIBS=ON",
             "-DENABLE_THREADS=ON",
-        ], cwd=build_subdir, check=True)
+        ], cwd=build_double, check=True)
+        subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_double, check=True)
+        subprocess.run(["cmake", "--install", "."], cwd=build_double, check=True)
 
-        subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_subdir, check=True)
-        subprocess.run(["cmake", "--install", "."], cwd=build_subdir, check=True)
-        print(">>> fftw built successfully")
+        # Build single precision
+        print(">>> Building fftw (single precision)...")
+        build_single = build_dir / "fftw-build-single"
+        build_single.mkdir(parents=True, exist_ok=True)
+
+        subprocess.run([
+            "cmake",
+            str(src_dir),
+            f"-DCMAKE_INSTALL_PREFIX={install_dir}",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DBUILD_SHARED_LIBS=ON",
+            "-DENABLE_THREADS=ON",
+            "-DENABLE_FLOAT=ON",  # Enable single precision
+        ], cwd=build_single, check=True)
+        subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_single, check=True)
+        subprocess.run(["cmake", "--install", "."], cwd=build_single, check=True)
+
+        print(">>> fftw built successfully (both precisions)")
 
     def _build_wcslib(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
         """Build wcslib library"""
@@ -148,10 +167,22 @@ class CMakeBuildExt(build_ext):
         ], cwd=src_dir, env=env, check=True)
 
         subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
-        # Install only libraries, skip documentation to avoid missing file errors
+        # Install library and headers, skip documentation
         subprocess.run(["make", "-C", "C", "install"], cwd=src_dir, check=True)
+        # Install wcsconfig.h and other header files
+        subprocess.run(["make", "install-nobase_includeHEADERS"], cwd=src_dir, check=False)
         # Install pkg-config file
-        subprocess.run(["make", "install-lib"], cwd=src_dir, check=False)  # This may partially fail but installs what we need
+        pkgconfig_dir = install_dir / "lib" / "pkgconfig"
+        pkgconfig_dir.mkdir(parents=True, exist_ok=True)
+        if (src_dir / "wcsconfig.h").exists():
+            import shutil
+            # Copy wcsconfig.h to the wcslib include directory
+            wcslib_include = install_dir / "include" / "wcslib"
+            if wcslib_include.exists():
+                shutil.copy(src_dir / "wcsconfig.h", wcslib_include / "wcsconfig.h")
+        if (src_dir / "wcslib.pc").exists():
+            import shutil
+            shutil.copy(src_dir / "wcslib.pc", pkgconfig_dir / "wcslib.pc")
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> wcslib built successfully")
@@ -168,9 +199,9 @@ class CMakeBuildExt(build_ext):
         env["CFITSIO_LIBS"] = f"-L{install_dir / 'lib'} -lcfitsio"
         env["FFTW3_CFLAGS"] = f"-I{install_dir / 'include'}"
         env["FFTW3_LIBS"] = f"-L{install_dir / 'lib'} -lfftw3"
-        env["WCSLIB_CFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'}"
+        env["WCSLIB_CFLAGS"] = f"-I{install_dir / 'include' / 'wcslib'}"
         env["WCSLIB_LIBS"] = f"-L{install_dir / 'lib'} -lwcs"
-        env["CPPFLAGS"] = f"-I{install_dir / 'include'}"
+        env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'}"
         env["LDFLAGS"] = f"-L{install_dir / 'lib'}"
         env["LD_LIBRARY_PATH"] = str(install_dir / "lib")
 
