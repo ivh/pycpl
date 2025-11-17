@@ -20,11 +20,12 @@ build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
-before-build = "yum install -y autoconf automake libtool"
+before-build = "yum install -y autoconf automake libtool python-devel"
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
 before-build = "brew install autoconf automake libtool"
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
 
 [tool.cibuildwheel.environment]
 CMAKE_BUILD_PARALLEL_LEVEL = "4"
