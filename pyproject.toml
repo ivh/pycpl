@@ -26,6 +26,7 @@ repair-wheel-command = ""
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
 before-build = "brew install autoconf automake libtool"
+repair-wheel-command = ""
 environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
 
 [tool.cibuildwheel.environment]
