@@ -121,6 +121,7 @@ class CMakeBuildExt(build_ext):
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_SHARED_LIBS=ON",
             "-DUSE_PTHREADS=ON",
+            "-DCMAKE_INSTALL_LIBDIR=lib",
         ], cwd=build_subdir, check=True)
 
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_subdir, check=True)
@@ -144,6 +145,7 @@ class CMakeBuildExt(build_ext):
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_SHARED_LIBS=ON",
             "-DENABLE_THREADS=ON",
+            "-DCMAKE_INSTALL_LIBDIR=lib",
         ], cwd=build_double, check=True)
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_double, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_double, check=True)
@@ -161,6 +163,7 @@ class CMakeBuildExt(build_ext):
             "-DBUILD_SHARED_LIBS=ON",
             "-DENABLE_THREADS=ON",
             "-DENABLE_FLOAT=ON",  # Enable single precision
+            "-DCMAKE_INSTALL_LIBDIR=lib",
         ], cwd=build_single, check=True)
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_single, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_single, check=True)
