@@ -21,6 +21,7 @@ build-verbosity = 1
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
 before-build = "yum install -y autoconf automake libtool"
+repair-wheel-command = ""
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

@@ -280,6 +280,7 @@ class CMakeBuildExt(build_ext):
             f"--prefix={install_dir}",
             "--disable-static",
             "--enable-shared",
+            "--disable-java",
         ], cwd=src_dir, env=env, check=True)
 
         subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
