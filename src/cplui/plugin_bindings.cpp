@@ -50,11 +50,7 @@ bind_plugin(py::module& m)
     cpl::ui::CRecipe::set_recipe_dir(default_dir);
   }
   catch (const std::filesystem::filesystem_error& bad_recipe_dir) {
-    py::module::import("warnings")
-        .attr("warn")(
-            std::string("An error occurred trying to read the esopipes-plugin "
-                        "directory '" PYCPL_RECIPE_DIR "': ") +
-            bad_recipe_dir.what());
+    // Silently ignore - the build-time path may not exist at runtime
   }
 
   py::class_<cpl::ui::CRecipe, std::shared_ptr<cpl::ui::CRecipe>> crecipe(
