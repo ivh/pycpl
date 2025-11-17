@@ -145,6 +145,16 @@ class CMakeBuildExt(build_ext):
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_single, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_single, check=True)
 
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            [
+                "libfftw3.3.dylib",
+                "libfftw3_threads.3.dylib",
+                "libfftw3f.3.dylib",
+                "libfftw3f_threads.3.dylib",
+            ],
+        )
+
         print(">>> fftw built successfully (both precisions)")
 
     def _build_wcslib(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
@@ -155,9 +165,25 @@ class CMakeBuildExt(build_ext):
         # wcslib doesn't support out-of-tree builds well, build in-source
         env = os.environ.copy()
         # Set proper LDFLAGS and CFLAGS instead of CFITSIOLIB/CFITSIOINC
-        env["LDFLAGS"] = f"-L{install_dir / 'lib'}"
         env["CFLAGS"] = f"-I{install_dir / 'include'}"
-        env["LD_LIBRARY_PATH"] = str(install_dir / "lib")
+        lib_path = str(install_dir / "lib")
+        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        env["LDFLAGS"] = (
+            f"{ldflags} {env['LDFLAGS']}"
+            if env.get("LDFLAGS")
+            else ldflags
+        )
+        env["LD_LIBRARY_PATH"] = (
+            f"{lib_path}:{env['LD_LIBRARY_PATH']}"
+            if env.get("LD_LIBRARY_PATH")
+            else lib_path
+        )
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = (
+                f"{lib_path}:{env['DYLD_LIBRARY_PATH']}"
+                if env.get("DYLD_LIBRARY_PATH")
+                else lib_path
+            )
 
         subprocess.run([
             "./configure",
@@ -202,8 +228,24 @@ class CMakeBuildExt(build_ext):
         env["WCSLIB_CFLAGS"] = f"-I{install_dir / 'include' / 'wcslib'}"
         env["WCSLIB_LIBS"] = f"-L{install_dir / 'lib'} -lwcs"
         env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'}"
-        env["LDFLAGS"] = f"-L{install_dir / 'lib'}"
-        env["LD_LIBRARY_PATH"] = str(install_dir / "lib")
+        lib_path = str(install_dir / "lib")
+        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        env["LDFLAGS"] = (
+            f"{ldflags} {env['LDFLAGS']}"
+            if env.get("LDFLAGS")
+            else ldflags
+        )
+        env["LD_LIBRARY_PATH"] = (
+            f"{lib_path}:{env['LD_LIBRARY_PATH']}"
+            if env.get("LD_LIBRARY_PATH")
+            else lib_path
+        )
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = (
+                f"{lib_path}:{env['DYLD_LIBRARY_PATH']}"
+                if env.get("DYLD_LIBRARY_PATH")
+                else lib_path
+            )
 
         # Regenerate autotools files if configure is missing
         if not (src_dir / "configure").exists():
@@ -222,6 +264,19 @@ class CMakeBuildExt(build_ext):
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> CPL built successfully")
+
+    def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
+        """Ensure macOS dylibs advertise an absolute install name so dlopen works without rpath."""
+        if sys.platform != "darwin":
+            return
+        for name in libraries:
+            dylib = lib_dir / name
+            if not dylib.exists():
+                continue
+            subprocess.run(
+                ["install_name_tool", "-id", str(dylib), str(dylib)],
+                check=True,
+            )
 
     def build_extension(self, ext: CMakeExtension) -> None:
         # CAUTION: Using extdir requires trailing slash for auto-detection &

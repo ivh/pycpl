@@ -299,7 +299,7 @@ if test "x$ac_cv_c_compiler_gnu" = xyes ; then
       SHRLIB="libwcs.$LIBVER.dylib"
       SONAME="libwcs.$SHVER.dylib"
       SHRLD="$SHRLD -dynamiclib -single_module"
-      SHRLD="$SHRLD -compatibility_version $SHVER -current_version $LIBVER -install_name \$(SONAME)"
+      SHRLD="$SHRLD -compatibility_version $SHVER -current_version $LIBVER -install_name @rpath/\$(SONAME)"
       SHRLN="libwcs.dylib"
 
       case "$host_cpu" in

@@ -7207,7 +7207,7 @@ printf "%s\n" "$as_me: WARNING: Generation of WCS shared libraries disabled." >&
       SHRLIB="libwcs.$LIBVER.dylib"
       SONAME="libwcs.$SHVER.dylib"
       SHRLD="$SHRLD -dynamiclib -single_module"
-      SHRLD="$SHRLD -compatibility_version $SHVER -current_version $LIBVER -install_name \$(SONAME)"
+      SHRLD="$SHRLD -compatibility_version $SHVER -current_version $LIBVER -install_name @rpath/\$(SONAME)"
       SHRLN="libwcs.dylib"
 
       case "$host_cpu" in
