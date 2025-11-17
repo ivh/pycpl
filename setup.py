@@ -319,18 +319,53 @@ class CMakeBuildExt(build_ext):
         print(">>> CPL built successfully")
 
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
-        """Fix macOS dylib install names to use @rpath so they can be relocated."""
+        """Fix macOS dylib install names and dependencies to use @rpath so they can be relocated."""
         if sys.platform != "darwin":
             return
+
+        lib_dir = Path(lib_dir)
+
+        # First pass: fix install names
         for name in libraries:
             dylib = lib_dir / name
             if not dylib.exists():
                 continue
-            # Set install name to @rpath/libname so it can be found via RPATH
             subprocess.run(
                 ["install_name_tool", "-id", f"@rpath/{name}", str(dylib)],
                 check=True,
             )
+
+        # Second pass: fix dependencies between libraries
+        for name in libraries:
+            dylib = lib_dir / name
+            if not dylib.exists():
+                continue
+
+            # Get list of dependencies
+            result = subprocess.run(
+                ["otool", "-L", str(dylib)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            # Parse otool output and fix any absolute paths
+            for line in result.stdout.splitlines()[1:]:  # Skip first line (the dylib itself)
+                line = line.strip()
+                if not line:
+                    continue
+                # Extract the path (before the version info in parentheses)
+                dep_path = line.split('(')[0].strip()
+
+                # If it's an absolute path in the build directory, fix it
+                if str(lib_dir) in dep_path or "/Users/runner/" in dep_path:
+                    # Extract just the library filename
+                    dep_name = Path(dep_path).name
+                    # Change to use @rpath
+                    subprocess.run(
+                        ["install_name_tool", "-change", dep_path, f"@rpath/{dep_name}", str(dylib)],
+                        check=True,
+                    )
 
     def _copy_vendored_libraries(self, extdir: Path) -> None:
         """Copy vendored shared libraries alongside the extension module."""
