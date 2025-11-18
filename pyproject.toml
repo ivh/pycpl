@@ -1,14 +1,38 @@
 [project]
 name = "pycpl"
-version = "0.1.0"
-description = "PyCPL, with CPL and dependencies included"
+version = "1.0.3"
+description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "numpy>=2.3.5",
-    "pybind11>=3.0.1",
-    "setuptools>=80.9.0",
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "European Southern Observatory, Australian Astronomical Optics Macquarie", email = "cpl-help@eso.org"}
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Software Development",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Unix",
+    "Development Status :: 5 - Production/Stable",
+]
+dependencies = [
+    "numpy",
+    "astropy",
+]
+
+[project.optional-dependencies]
+pandas = ["pandas"]
+doc = ["sphinx"]
+test = ["pytest", "pandas", "scipy"]
+
+[project.urls]
+Homepage = "http://www.eso.org/sci/software/pycpl"
+Documentation = "http://www.eso.org/sci/software/pycpl"
+Source = "https://ftp.eso.org/pub/dfs/pipelines/libraries/pycpl"
 [build-system]
 requires = ["setuptools>=70", "wheel", "pybind11", "cmake"]
 build-backend = "setuptools.build_meta"
