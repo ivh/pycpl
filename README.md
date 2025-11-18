@@ -4,12 +4,24 @@
 
 In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcsloib, fftw) included, so they won't have to be installed separately and made to be found by the package.
 
-Things to note:
-* I chose the package version number the same as ESO's, but appending *post1* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, install fixed version number like pycpl==1.0.3 .
-* For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
-* There is a GitHub workflow that build pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
+A few things to note:
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
-* The installation instructions below do not apply to this package. Just use it like any other Python package with *uv*, *pip*, etc.
+* There is a GitHub workflow that builds pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
+* For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
+* I chose the package version number the same as ESO's, but appending *.post1* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, use only their index and/or install the fixed version number like *pycpl==1.0.3* .
+* The installation instructions below do not apply to this package. Instead do `(uv) pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/` or add the URL to your *pyproject.toml*. Like this, `uv sync` will install *pycpl* from here and *pyesorex* and *edps* from ESO, having them use the bundled pycpl:
+
+```
+[project]
+# ...
+dependencies = ['pycpl','pyesorex','edps']
+
+[tool.uv]
+extra-index-url = [
+    "https://ivh.github.io/pycpl/simple/",
+    "https://ftp.eso.org/pub/dfs/pipelines/libraries/"
+]
+```
 
 Original ESO README from here on:
 

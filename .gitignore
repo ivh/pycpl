@@ -109,3 +109,4 @@ texinfo.tex
 ChangeLog
 CHANGES
 *.log
+wheels-*
