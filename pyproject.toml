@@ -1,6 +1,6 @@
 [project]
 name = "pycpl"
-version = "1.0.3"
+version = "1.0.3.post1"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.11"
