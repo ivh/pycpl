@@ -6,7 +6,7 @@ set -e
 mkdir -p simple/pycpl
 
 # Root index
-cat > simple/index.html <<EOF
+cat > simple/index.html <<'EOF'
 <!DOCTYPE html>
 <html>
 <head>
@@ -18,8 +18,9 @@ cat > simple/index.html <<EOF
 </html>
 EOF
 
-# Package index header
-cat > simple/pycpl/index.html <<EOF
+# Package index - generate complete HTML
+{
+    cat <<'HEADER'
 <!DOCTYPE html>
 <html>
 <head>
@@ -27,22 +28,20 @@ cat > simple/pycpl/index.html <<EOF
 </head>
 <body>
     <h1>Links for pycpl</h1>
-EOF
+HEADER
 
-# Add links for all releases
-gh release list --limit 100 --json tagName | \
-  jq -r '.[].tagName' | \
-  while read tag; do
-    gh release view "$tag" --json assets --jq '.assets[] | select(.name | endswith(".whl") or endswith(".tar.gz")) | .name' | \
-      while read filename; do
-        echo "    <a href=\"https://github.com/ivh/pycpl/releases/download/$tag/$filename\">$filename</a><br>" >> simple/pycpl/index.html
-      done
-  done
+    # Generate links for all releases
+    for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+        gh release view "$tag" --json assets --jq '.assets[] | select(.name | endswith(".whl") or endswith(".tar.gz")) | .name' | \
+            while IFS= read -r filename; do
+                echo "    <a href=\"https://github.com/ivh/pycpl/releases/download/$tag/$filename\">$filename</a><br>"
+            done
+    done
 
-# Footer
-cat >> simple/pycpl/index.html <<EOF
+    cat <<'FOOTER'
 </body>
 </html>
-EOF
+FOOTER
+} > simple/pycpl/index.html
 
 echo "Index updated in simple/"
