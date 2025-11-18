@@ -105,6 +105,7 @@ endif()
 # Search for the header files
 find_path(HDRL_INCLUDE_DIR
           NAMES hdrl.h
+          PATH_SUFFIXES hdrl
           HINTS ${HDRL_ROOT}/include ${PC_HDRL_INCLUDE_DIRS})
 mark_as_advanced(HDRL_INCLUDE_DIR)
 
