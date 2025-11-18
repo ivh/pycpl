@@ -45,6 +45,7 @@ list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig)
 find_package(CPL "7.2" REQUIRED COMPONENTS cplcore cplui cpldfs cpldrs)
+find_package(HDRL REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 REQUIRED)
 
@@ -120,6 +121,8 @@ pybind11_add_module(cpl
     src/cplui/parameterlist.cpp
     src/cplui/plugin_bindings.cpp
     src/cplui/plugin.cpp
+    src/hdrl/hdrl_image.cpp
+    src/hdrl/hdrl_image_bindings.cpp
     src/dump_handler.cpp
     src/pycpl.cpp)
 
@@ -134,10 +137,10 @@ target_compile_options(cpl PRIVATE
     $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE} -fno-omit-frame-pointer>)
 target_include_directories(cpl BEFORE
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PUBLIC ${CPL_INCLUDE_DIR})
+    PUBLIC ${CPL_INCLUDE_DIR} ${HDRL_INCLUDE_DIR})
 target_link_options(cpl PRIVATE
     $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE}>)
-target_link_libraries(cpl PRIVATE CPL::cpldrs CPL::cpldfs CPL::cplui CPL::cplcore)
+target_link_libraries(cpl PRIVATE HDRL::hdrl CPL::cpldrs CPL::cpldfs CPL::cplui CPL::cplcore)
 
 set_target_properties(cpl PROPERTIES
     C_STANDARD 17

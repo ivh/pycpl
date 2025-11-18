@@ -56,7 +56,7 @@ class CMakeBuildExt(build_ext):
             self.build_extension(ext)
 
     def build_dependencies(self) -> None:
-        """Build vendored C libraries: cfitsio, fftw, wcslib, and cpl"""
+        """Build vendored C libraries: cfitsio, fftw, wcslib, cpl, and hdrl"""
         print("=" * 60)
         print("Building vendored C library dependencies")
         print("=" * 60)
@@ -100,6 +100,10 @@ class CMakeBuildExt(build_ext):
         # Phase 3: Build cpl (depends on all three)
         print("\n>>> Phase 3: Building cpl...")
         self._build_cpl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+
+        # Phase 4: Build hdrl (depends on cpl)
+        print("\n>>> Phase 4: Building hdrl...")
+        self._build_hdrl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
 
         # Set CPLDIR environment variable so FindCPL.cmake can find it
         os.environ["CPLDIR"] = str(deps_install_dir)
@@ -317,6 +321,74 @@ class CMakeBuildExt(build_ext):
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> CPL built successfully")
+
+    def _build_hdrl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
+        """Build HDRL library"""
+        print("\n>>> Building HDRL...")
+        src_dir = vendor_dir / "hdrl-1.5.0"
+
+        # HDRL uses autoconf and needs to find CPL and other dependencies
+        env = os.environ.copy()
+
+        # Set CPLDIR so ESO_CHECK_CPL macro can find CPL
+        env["CPLDIR"] = str(install_dir)
+
+        env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")
+
+        # Set other library flags (needed by HDRL)
+        env["CFITSIO_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["CFITSIO_LIBS"] = f"-L{install_dir / 'lib'} -lcfitsio"
+        env["FFTW3_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["FFTW3_LIBS"] = f"-L{install_dir / 'lib'} -lfftw3"
+        env["WCSLIB_CFLAGS"] = f"-I{install_dir / 'include' / 'wcslib'}"
+        env["WCSLIB_LIBS"] = f"-L{install_dir / 'lib'} -lwcs"
+
+        env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'} -I{install_dir / 'include' / 'cpl'}"
+        lib_path = str(install_dir / "lib")
+        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        env["LDFLAGS"] = (
+            f"{ldflags} {env['LDFLAGS']}"
+            if env.get("LDFLAGS")
+            else ldflags
+        )
+        env["LD_LIBRARY_PATH"] = (
+            f"{lib_path}:{env['LD_LIBRARY_PATH']}"
+            if env.get("LD_LIBRARY_PATH")
+            else lib_path
+        )
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = (
+                f"{lib_path}:{env['DYLD_LIBRARY_PATH']}"
+                if env.get("DYLD_LIBRARY_PATH")
+                else lib_path
+            )
+
+        # Regenerate autotools files if configure is missing
+        if not (src_dir / "configure").exists():
+            print(">>> Regenerating autotools files for HDRL...")
+            subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
+
+        subprocess.run([
+            "./configure",
+            f"--prefix={install_dir}",
+            f"--with-cpl={install_dir}",  # Tell HDRL where CPL is
+            "--disable-static",
+            "--enable-shared",
+            "--disable-openmp",  # Disable OpenMP to avoid threading issues
+        ], cwd=src_dir, env=env, check=True)
+
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
+        subprocess.run(["make", "install"], cwd=src_dir, check=True)
+
+        # Fix install names on macOS for HDRL library
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            ["libhdrl.1.dylib"],
+        )
+
+        # Clean up build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        print(">>> HDRL built successfully")
 
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
         """Fix macOS dylib install names and dependencies to use @rpath so they can be relocated."""
