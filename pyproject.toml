@@ -46,6 +46,8 @@ build-verbosity = 1
 archs = ["x86_64"]
 before-build = "yum install -y autoconf automake libtool"
 repair-wheel-command = ""
+build = "*manylinux*"
+manylinux-x86_64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 archs = ["native"]
