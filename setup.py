@@ -524,6 +524,8 @@ class CMakeBuildExt(build_ext):
         cpldir = os.environ.get("CPLDIR", None)
         if cpldir is not None:
             cmake_args += [f"-DCPL_ROOT:PATH={Path(cpldir).resolve()}"]
+            # HDRL is installed in the same prefix as CPL
+            cmake_args += [f"-DHDRL_ROOT:PATH={Path(cpldir).resolve()}"]
         recipedir = os.environ.get("PYCPL_RECIPE_DIR", None)
         if recipedir is not None:
             cmake_args += [f"-DPYCPL_RECIPE_DIR:PATH={Path(recipedir).resolve()}"]
