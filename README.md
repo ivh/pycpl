@@ -6,8 +6,10 @@ In contrast to the ESO's own package, which is available from [their own index](
 
 Things to note:
 * I chose the package version number the same as ESO's, but appending *post1* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, install fixed version number like pycpl==1.0.3 .
+* For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
 * There is a GitHub workflow that build pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
+* The installation instructions below do not apply to this package. Just use it like any other Python package with *uv*, *pip*, etc.
 
 Original ESO README from here on:
 
