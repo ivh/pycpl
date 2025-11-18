@@ -88,19 +88,19 @@ def _fix_darwin_install_names(self, lib_dir, libraries):
 
 ### Trigger Conditions
 
-- **Manual**: `workflow_dispatch` - builds but doesn't publish
-- **Release**: Push tag `v*` - builds AND publishes to PyPI
+- **Manual**: `workflow_dispatch` - builds wheels only
+- **Release**: Push tag `v*` - builds wheels, creates GitHub release, and updates package index
 
 ### Build Matrix
 
 ```yaml
 matrix:
-  os: [ubuntu-22.04, macos-13, macos-14]
+  os: [ubuntu-latest, macos-15-intel, macos-latest]
 ```
 
-- `ubuntu-22.04`: Linux x86_64 (manylinux2014)
-- `macos-13`: Intel x86_64
-- `macos-14`: Apple Silicon arm64
+- `ubuntu-latest`: Linux x86_64 (manylinux_2_28)
+- `macos-15-intel`: Intel x86_64
+- `macos-latest`: Apple Silicon arm64 (native builds only)
 
 ### Python Versions
 
@@ -117,17 +117,20 @@ Minimum: Python 3.11 (uses C++17 features)
 [tool.cibuildwheel.linux]
 before-build = "yum install -y autoconf automake libtool"
 repair-wheel-command = ""  # Skip auditwheel - we bundle libraries ourselves
+manylinux-x86_64-image = "manylinux_2_28"
 ```
 
 **macOS:**
 ```toml
 [tool.cibuildwheel.macos]
+archs = ["native"]  # Native builds only, no cross-compilation
 before-build = "brew install autoconf automake libtool"
 repair-wheel-command = ""  # Skip delocate - we handle dylibs ourselves
-environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
 ```
 
-- Deployment target 10.15 needed for C++17 `<filesystem>` support
+- Deployment target 11.0 for C++17 `<filesystem>` support
+- Native builds only (no cross-compilation) for faster builds
 
 ### Why Skip Repair Tools?
 
@@ -139,35 +142,73 @@ environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
   2. Extension has RPATH=$ORIGIN/@loader_path
   3. Library install names use @rpath (macOS)
 
-## Publishing to PyPI
+## Distribution via GitHub Pages
 
-### Trusted Publishing Setup
+Since PyPI rejected the package name as too similar to ESO's `pycpl`, we distribute wheels via a custom package index hosted on GitHub Pages.
 
-1. Configure at https://pypi.org/manage/account/publishing/
-   - Repository: `ivh/pycpl`
-   - Workflow: `python-publish.yml`
-   - No environment name needed
+### Package Index Structure
 
-2. Push a tag:
+The `simple/` directory contains a PEP 503 compliant package index:
+
+```
+simple/
+├── .nojekyll              # Disable Jekyll processing
+├── index.html             # Root index
+└── pycpl/
+    └── index.html         # Package index with links to all wheel releases
+```
+
+### Automatic Index Updates
+
+When a new release is tagged, the workflow automatically:
+
+1. Builds wheels for all platforms
+2. Creates a GitHub Release with wheel attachments
+3. Runs `update-index.sh` to regenerate the index from all releases
+4. Commits and pushes the updated index to master
+
+The `update_index` job queries all GitHub releases and generates HTML with direct links to wheel files.
+
+### Manual Index Update
+
+To manually update the index:
+```bash
+./update-index.sh
+git add simple/
+git commit -m "update package index"
+git push
+```
+
+### Installation
+
+Users install with:
+```bash
+pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/
+```
+
+Or configure in `pyproject.toml`:
+```toml
+[tool.uv]
+extra-index-url = ["https://ivh.github.io/pycpl/simple/"]
+```
+
+The `--extra-index-url` allows pip/uv to find pycpl from our index while still using PyPI for dependencies like numpy and astropy.
+
+### Creating a New Release
+
+1. Push a tag:
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.0.3.post2
+   git push origin v1.0.3.post2
    ```
 
-3. Workflow automatically uploads wheels + sdist
+2. Workflow automatically:
+   - Builds wheels
+   - Creates GitHub Release
+   - Updates package index
+   - Commits updated index to master
 
-### If Upload Fails
-
-Re-run just the upload job:
-```bash
-gh run rerun <run-id> --failed
-```
-
-Or manual upload:
-```bash
-gh run download <run-id>
-twine upload wheels-*/*.whl sdist/*.tar.gz
-```
+3. New version is immediately installable from GitHub Pages
 
 ## Common Issues & Solutions
 
@@ -236,4 +277,5 @@ All libraries at wheel root, extension has RPATH to find them.
 
 - CPL Documentation: http://www.eso.org/sci/software/cpl
 - cibuildwheel docs: https://cibuildwheel.readthedocs.io/
-- PyPI Trusted Publishing: https://docs.pypi.org/trusted-publishers/
+- PEP 503 (Simple Repository API): https://peps.python.org/pep-0503/
+- GitHub Pages: https://pages.github.com/

@@ -2,7 +2,7 @@
 
 **This is an unofficial re-packaging of ESO's PyCPL**
 
-In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcsloib, fftw) included, so they won't have to be installed separately and made to be found by the package.
+In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcslib, fftw) included, so they don't have to be installed separately and made to be found by the package.
 
 A few things to note:
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.

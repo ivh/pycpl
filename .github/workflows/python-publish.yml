@@ -54,27 +54,6 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
-  upload_pypi:
-    needs: [build_wheels, build_sdist]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: wheels-*
-          merge-multiple: true
-          path: dist/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdist
-          path: dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
   create_release:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
@@ -98,3 +77,25 @@ jobs:
         with:
           files: dist/*
           fail_on_unmatched_files: true
+
+  update_index:
+    needs: create_release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Update package index
+        run: ./update-index.sh
+
+      - name: Commit and push index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add simple/
+          git commit -m "update package index for ${{ github.ref_name }}" || exit 0
+          git push
