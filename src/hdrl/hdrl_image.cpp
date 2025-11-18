@@ -108,9 +108,9 @@ std::shared_ptr<cpl::core::ImageBase> Image::get_image()
 
 std::shared_ptr<const cpl::core::ImageBase> Image::get_image() const
 {
-  cpl_image* img =
+  const cpl_image* img =
       Error::throw_errors_with(hdrl_image_get_image_const, m_image);
-  cpl_image* dup = Error::throw_errors_with(cpl_image_duplicate, img);
+  cpl_image* dup = Error::throw_errors_with(cpl_image_duplicate, const_cast<cpl_image*>(img));
   return cpl::core::ImageBase::make_image(dup);
 }
 
@@ -123,9 +123,9 @@ std::shared_ptr<cpl::core::ImageBase> Image::get_error()
 
 std::shared_ptr<const cpl::core::ImageBase> Image::get_error() const
 {
-  cpl_image* img =
+  const cpl_image* img =
       Error::throw_errors_with(hdrl_image_get_error_const, m_image);
-  cpl_image* dup = Error::throw_errors_with(cpl_image_duplicate, img);
+  cpl_image* dup = Error::throw_errors_with(cpl_image_duplicate, const_cast<cpl_image*>(img));
   return cpl::core::ImageBase::make_image(dup);
 }
 
@@ -139,8 +139,8 @@ std::shared_ptr<cpl::core::Mask> Image::get_mask()
 
 std::shared_ptr<const cpl::core::Mask> Image::get_mask() const
 {
-  cpl_mask* mask = Error::throw_errors_with(hdrl_image_get_mask_const, m_image);
-  cpl_mask* dup = Error::throw_errors_with(cpl_mask_duplicate, mask);
+  const cpl_mask* mask = Error::throw_errors_with(hdrl_image_get_mask_const, m_image);
+  cpl_mask* dup = Error::throw_errors_with(cpl_mask_duplicate, const_cast<cpl_mask*>(mask));
   return std::make_shared<cpl::core::Mask>(dup);
 }
 

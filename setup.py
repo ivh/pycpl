@@ -373,14 +373,15 @@ class CMakeBuildExt(build_ext):
         needs_patch = False
 
         # Remove -static and add -version-info for shared library building
+        # Keep -DHDRL_USE_PRIVATE (needed for internal headers) but override hidden visibility
         if "-static" in makefile_content or "-version-info" not in makefile_content:
             print(">>> Patching Makefile.am for shared library support")
             patched_content = makefile_content.replace(
                 "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -static",
-                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0"
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0 -export-symbols-regex '^hdrl_'"
             ).replace(
                 "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS)",
-                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0"
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0 -export-symbols-regex '^hdrl_'"
             )
             makefile_am.write_text(patched_content)
             needs_patch = True
@@ -396,6 +397,7 @@ class CMakeBuildExt(build_ext):
             f"--with-cpl={install_dir}",  # Tell HDRL where CPL is
             "--disable-static",
             "--enable-shared",
+            "--enable-standalone",  # Enable standalone installation (not VLTSW environment)
             "--disable-openmp",  # Disable OpenMP to avoid threading issues
         ], cwd=src_dir, env=env, check=True)
 

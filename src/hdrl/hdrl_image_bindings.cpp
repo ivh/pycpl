@@ -90,11 +90,14 @@ void bind_hdrl_image(py::module& m)
       .def(py::init<const cpl::hdrl::Image&>(),
            py::arg("other"),
            "Create a copy of an existing HDRL image")
-      .def("get_image", &cpl::hdrl::Image::get_image,
+      .def("get_image",
+           static_cast<std::shared_ptr<cpl::core::ImageBase> (cpl::hdrl::Image::*)()>(&cpl::hdrl::Image::get_image),
            "Get the data image")
-      .def("get_error", &cpl::hdrl::Image::get_error,
+      .def("get_error",
+           static_cast<std::shared_ptr<cpl::core::ImageBase> (cpl::hdrl::Image::*)()>(&cpl::hdrl::Image::get_error),
            "Get the error image")
-      .def("get_mask", &cpl::hdrl::Image::get_mask,
+      .def("get_mask",
+           static_cast<std::shared_ptr<cpl::core::Mask> (cpl::hdrl::Image::*)()>(&cpl::hdrl::Image::get_mask),
            "Get the bad pixel mask")
       .def("get_pixel", &cpl::hdrl::Image::get_pixel,
            py::arg("xpos"), py::arg("ypos"),
