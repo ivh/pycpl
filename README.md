@@ -1,8 +1,17 @@
-# PyCPL &mdash; Python 3 bindings for the ESO Common Pipeline Library
+# PyCPL with batteries included
 
 **This is an unofficial re-packaging of ESO's PyCPL**
 
-In contrast to the official package, this one comes with the necessary C-libraries included, so they won't have to be installed separately. This a quick afternoon-project and there are no guarantees on how well it works. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
+In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcsloib, fftw) included, so they won't have to be installed separately and made to be found by the package.
+
+Things to note:
+* I chose the package version number the same as ESO's, but appending *post1* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, install fixed version number like pycpl==1.0.3 .
+* There is a GitHub workflow that build pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
+* This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
+
+Original ESO README from here on:
+
+# PyCPL &mdash; Python 3 bindings for the ESO Common Pipeline Library
 
 PyCPL provides Python 3 bindings for the ESO Common Pipeline Library (CPL) via Pybind11. It allows for using the ESO Common Pipeline Library in Python scripts, or the Python interpreter, and thus allows for implementing instrument individual pipeline recipes or entire instrument pipelines in Python. In addition to providing an interface to implement pipeline recipes in Python, it also provides the necessary Python bindings to execute the recipes of traditional instrument pipelines implemented directly in C/C++ using the ESO Common Pipeline Library (CPL). Together with the command line tool PyEsoRex, a drop-in replacement for the EsoRex command line tool, any combination of instrument pipeline recipes implemented in Python or C/C++ can be executed transparently from the shell prompt with the same user experience as provided by the EsoRex tool.
 
