@@ -363,10 +363,32 @@ class CMakeBuildExt(build_ext):
                 else lib_path
             )
 
-        # Regenerate autotools files if configure is missing
-        if not (src_dir / "configure").exists():
+        # Clean any existing build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Patch Makefile.am to fix library building
+        makefile_am = src_dir / "Makefile.am"
+        makefile_content = makefile_am.read_text()
+        needs_patch = False
+
+        # Remove -static and add -version-info for shared library building
+        if "-static" in makefile_content or "-version-info" not in makefile_content:
+            print(">>> Patching Makefile.am for shared library support")
+            patched_content = makefile_content.replace(
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -static",
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0"
+            ).replace(
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS)",
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0"
+            )
+            makefile_am.write_text(patched_content)
+            needs_patch = True
+
+        if needs_patch:
+            # Force regeneration after patching
             print(">>> Regenerating autotools files for HDRL...")
-            subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
+            subprocess.run(["autoreconf", "-fi"], cwd=src_dir, env=env, check=True)
 
         subprocess.run([
             "./configure",
@@ -377,8 +399,24 @@ class CMakeBuildExt(build_ext):
             "--disable-openmp",  # Disable OpenMP to avoid threading issues
         ], cwd=src_dir, env=env, check=True)
 
-        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
-        subprocess.run(["make", "install"], cwd=src_dir, check=True)
+        print(f">>> Running make -j{njobs}")
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, env=env, check=True)
+
+        # Check what was built
+        import glob
+        so_files = list(glob.glob(str(src_dir / ".libs" / "*.so*")))
+        a_files = list(glob.glob(str(src_dir / ".libs" / "*.a")))
+        print(f">>> Built: {len(so_files)} .so files, {len(a_files)} .a files")
+
+        print(f">>> Running make install to {install_dir}")
+        result = subprocess.run(["make", "install"], cwd=src_dir, env=env, check=True,
+                               capture_output=True, text=True)
+        print(f">>> make install completed: {len(result.stdout)} bytes output")
+        # Print the actual output to debug
+        print(">>> make install output:")
+        for line in result.stdout.split('\n')[:20]:  # First 20 lines
+            if line.strip():
+                print(f">>>   {line[:100]}")
 
         # Fix install names on macOS for HDRL library
         self._fix_darwin_install_names(
@@ -387,8 +425,20 @@ class CMakeBuildExt(build_ext):
         )
 
         # Clean up build artifacts
-        subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        # subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> HDRL built successfully")
+
+        # Debug: List what was installed
+        print(f">>> Checking HDRL installation in {install_dir}")
+        import glob
+        hdrl_headers = list(glob.glob(str(install_dir / "include" / "**" / "hdrl*.h"), recursive=True))
+        hdrl_libs = list(glob.glob(str(install_dir / "lib" / "libhdrl*")))
+        print(f">>> Found {len(hdrl_headers)} HDRL headers")
+        print(f">>> Found {len(hdrl_libs)} HDRL libraries")
+        if hdrl_headers:
+            print(f">>> First header: {hdrl_headers[0]}")
+        if hdrl_libs:
+            print(f">>> First library: {hdrl_libs[0]}")
 
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
         """Fix macOS dylib install names and dependencies to use @rpath so they can be relocated."""
