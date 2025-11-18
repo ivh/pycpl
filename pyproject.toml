@@ -48,7 +48,7 @@ before-build = "yum install -y autoconf automake libtool"
 repair-wheel-command = ""
 
 [tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
+archs = ["native"]
 before-build = "brew install autoconf automake libtool"
 repair-wheel-command = ""
 environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
