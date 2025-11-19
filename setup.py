@@ -56,7 +56,7 @@ class CMakeBuildExt(build_ext):
             self.build_extension(ext)
 
     def build_dependencies(self) -> None:
-        """Build vendored C libraries: cfitsio, fftw, wcslib, and cpl"""
+        """Build vendored C libraries: cfitsio, fftw, wcslib, cpl, and hdrl"""
         print("=" * 60)
         print("Building vendored C library dependencies")
         print("=" * 60)
@@ -100,6 +100,10 @@ class CMakeBuildExt(build_ext):
         # Phase 3: Build cpl (depends on all three)
         print("\n>>> Phase 3: Building cpl...")
         self._build_cpl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+
+        # Phase 4: Build hdrl (depends on cpl)
+        print("\n>>> Phase 4: Building hdrl...")
+        self._build_hdrl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
 
         # Set CPLDIR environment variable so FindCPL.cmake can find it
         os.environ["CPLDIR"] = str(deps_install_dir)
@@ -318,6 +322,126 @@ class CMakeBuildExt(build_ext):
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> CPL built successfully")
 
+    def _build_hdrl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
+        """Build HDRL library"""
+        print("\n>>> Building HDRL...")
+        src_dir = vendor_dir / "hdrl-1.5.0"
+
+        # HDRL uses autoconf and needs to find CPL and other dependencies
+        env = os.environ.copy()
+
+        # Set CPLDIR so ESO_CHECK_CPL macro can find CPL
+        env["CPLDIR"] = str(install_dir)
+
+        env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")
+
+        # Set other library flags (needed by HDRL)
+        env["CFITSIO_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["CFITSIO_LIBS"] = f"-L{install_dir / 'lib'} -lcfitsio"
+        env["FFTW3_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["FFTW3_LIBS"] = f"-L{install_dir / 'lib'} -lfftw3"
+        env["WCSLIB_CFLAGS"] = f"-I{install_dir / 'include' / 'wcslib'}"
+        env["WCSLIB_LIBS"] = f"-L{install_dir / 'lib'} -lwcs"
+
+        env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'} -I{install_dir / 'include' / 'cpl'}"
+        lib_path = str(install_dir / "lib")
+        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        env["LDFLAGS"] = (
+            f"{ldflags} {env['LDFLAGS']}"
+            if env.get("LDFLAGS")
+            else ldflags
+        )
+        env["LD_LIBRARY_PATH"] = (
+            f"{lib_path}:{env['LD_LIBRARY_PATH']}"
+            if env.get("LD_LIBRARY_PATH")
+            else lib_path
+        )
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = (
+                f"{lib_path}:{env['DYLD_LIBRARY_PATH']}"
+                if env.get("DYLD_LIBRARY_PATH")
+                else lib_path
+            )
+
+        # Clean any existing build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Patch Makefile.am to fix library building
+        makefile_am = src_dir / "Makefile.am"
+        makefile_content = makefile_am.read_text()
+        needs_patch = False
+
+        # Remove -static and add -version-info for shared library building
+        # Keep -DHDRL_USE_PRIVATE (needed for internal headers) but override hidden visibility
+        if "-static" in makefile_content or "-version-info" not in makefile_content:
+            print(">>> Patching Makefile.am for shared library support")
+            patched_content = makefile_content.replace(
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -static",
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0 -export-symbols-regex '^hdrl_'"
+            ).replace(
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS)",
+                "libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -version-info 1:0:0 -export-symbols-regex '^hdrl_'"
+            )
+            makefile_am.write_text(patched_content)
+            needs_patch = True
+
+        if needs_patch:
+            # Force regeneration after patching
+            print(">>> Regenerating autotools files for HDRL...")
+            subprocess.run(["autoreconf", "-fi"], cwd=src_dir, env=env, check=True)
+
+        subprocess.run([
+            "./configure",
+            f"--prefix={install_dir}",
+            f"--with-cpl={install_dir}",  # Tell HDRL where CPL is
+            "--disable-static",
+            "--enable-shared",
+            "--enable-standalone",  # Enable standalone installation (not VLTSW environment)
+            "--disable-openmp",  # Disable OpenMP to avoid threading issues
+        ], cwd=src_dir, env=env, check=True)
+
+        print(f">>> Running make -j{njobs}")
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, env=env, check=True)
+
+        # Check what was built
+        import glob
+        so_files = list(glob.glob(str(src_dir / ".libs" / "*.so*")))
+        a_files = list(glob.glob(str(src_dir / ".libs" / "*.a")))
+        print(f">>> Built: {len(so_files)} .so files, {len(a_files)} .a files")
+
+        print(f">>> Running make install to {install_dir}")
+        result = subprocess.run(["make", "install"], cwd=src_dir, env=env, check=True,
+                               capture_output=True, text=True)
+        print(f">>> make install completed: {len(result.stdout)} bytes output")
+        # Print the actual output to debug
+        print(">>> make install output:")
+        for line in result.stdout.split('\n')[:20]:  # First 20 lines
+            if line.strip():
+                print(f">>>   {line[:100]}")
+
+        # Fix install names on macOS for HDRL library
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            ["libhdrl.1.dylib"],
+        )
+
+        # Clean up build artifacts
+        # subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        print(">>> HDRL built successfully")
+
+        # Debug: List what was installed
+        print(f">>> Checking HDRL installation in {install_dir}")
+        import glob
+        hdrl_headers = list(glob.glob(str(install_dir / "include" / "**" / "hdrl*.h"), recursive=True))
+        hdrl_libs = list(glob.glob(str(install_dir / "lib" / "libhdrl*")))
+        print(f">>> Found {len(hdrl_headers)} HDRL headers")
+        print(f">>> Found {len(hdrl_libs)} HDRL libraries")
+        if hdrl_headers:
+            print(f">>> First header: {hdrl_headers[0]}")
+        if hdrl_libs:
+            print(f">>> First library: {hdrl_libs[0]}")
+
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
         """Fix macOS dylib install names and dependencies to use @rpath so they can be relocated."""
         if sys.platform != "darwin":
@@ -452,6 +576,8 @@ class CMakeBuildExt(build_ext):
         cpldir = os.environ.get("CPLDIR", None)
         if cpldir is not None:
             cmake_args += [f"-DCPL_ROOT:PATH={Path(cpldir).resolve()}"]
+            # HDRL is installed in the same prefix as CPL
+            cmake_args += [f"-DHDRL_ROOT:PATH={Path(cpldir).resolve()}"]
         recipedir = os.environ.get("PYCPL_RECIPE_DIR", None)
         if recipedir is not None:
             cmake_args += [f"-DPYCPL_RECIPE_DIR:PATH={Path(recipedir).resolve()}"]

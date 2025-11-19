@@ -45,6 +45,7 @@
 #include "cplui/frame_bindings.hpp"
 #include "cplui/parameter_bindings.hpp"
 #include "cplui/plugin_bindings.hpp"
+#include "hdrl/hdrl_image_bindings.hpp"
 
 namespace py = pybind11;
 
@@ -153,4 +154,17 @@ PYBIND11_MODULE(cpl, m)
   bind_photom(cpldrs);
   bind_apertures(cpldrs);
   bind_geom_img(cpldrs);
+
+  py::module hdrl = m.def_submodule("hdrl", R"pydoc(HDRL submodule
+
+  This module provides high-level data reduction functions from the ESO
+  High-level Data Reduction Library (HDRL). It builds on top of CPL to provide
+  more sophisticated algorithms with automatic error propagation and bad pixel
+  handling.
+
+  The main data structure is hdrl.Image, which combines a data image, error image,
+  and bad pixel mask into a single object that automatically handles error
+  propagation through mathematical operations.
+  )pydoc");
+  bind_hdrl_image(hdrl);
 }
