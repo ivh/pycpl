@@ -90,6 +90,8 @@ jobs:
           ref: master
 
       - name: Update package index
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: ./update-index.sh
 
       - name: Commit and push index
