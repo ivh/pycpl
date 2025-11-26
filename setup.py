@@ -114,7 +114,7 @@ class CMakeBuildExt(build_ext):
         build_subdir.mkdir(parents=True, exist_ok=True)
 
         # Use CMake for cfitsio
-        subprocess.run([
+        cmake_args = [
             "cmake",
             str(src_dir),
             f"-DCMAKE_INSTALL_PREFIX={install_dir}",
@@ -122,7 +122,11 @@ class CMakeBuildExt(build_ext):
             "-DBUILD_SHARED_LIBS=ON",
             "-DUSE_PTHREADS=ON",
             "-DCMAKE_INSTALL_LIBDIR=lib",
-        ], cwd=build_subdir, check=True)
+        ]
+        # Force RPATH instead of RUNPATH on Linux for transitive library loading
+        if sys.platform == "linux":
+            cmake_args.append("-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--disable-new-dtags")
+        subprocess.run(cmake_args, cwd=build_subdir, check=True)
 
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_subdir, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_subdir, check=True)
@@ -145,7 +149,7 @@ class CMakeBuildExt(build_ext):
         build_double = build_dir / "fftw-build-double"
         build_double.mkdir(parents=True, exist_ok=True)
 
-        subprocess.run([
+        cmake_args_double = [
             "cmake",
             str(src_dir),
             f"-DCMAKE_INSTALL_PREFIX={install_dir}",
@@ -153,7 +157,11 @@ class CMakeBuildExt(build_ext):
             "-DBUILD_SHARED_LIBS=ON",
             "-DENABLE_THREADS=ON",
             "-DCMAKE_INSTALL_LIBDIR=lib",
-        ], cwd=build_double, check=True)
+        ]
+        # Force RPATH instead of RUNPATH on Linux for transitive library loading
+        if sys.platform == "linux":
+            cmake_args_double.append("-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--disable-new-dtags")
+        subprocess.run(cmake_args_double, cwd=build_double, check=True)
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_double, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_double, check=True)
 
@@ -162,7 +170,7 @@ class CMakeBuildExt(build_ext):
         build_single = build_dir / "fftw-build-single"
         build_single.mkdir(parents=True, exist_ok=True)
 
-        subprocess.run([
+        cmake_args_single = [
             "cmake",
             str(src_dir),
             f"-DCMAKE_INSTALL_PREFIX={install_dir}",
@@ -171,7 +179,11 @@ class CMakeBuildExt(build_ext):
             "-DENABLE_THREADS=ON",
             "-DENABLE_FLOAT=ON",  # Enable single precision
             "-DCMAKE_INSTALL_LIBDIR=lib",
-        ], cwd=build_single, check=True)
+        ]
+        # Force RPATH instead of RUNPATH on Linux for transitive library loading
+        if sys.platform == "linux":
+            cmake_args_single.append("-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--disable-new-dtags")
+        subprocess.run(cmake_args_single, cwd=build_single, check=True)
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_single, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_single, check=True)
 
@@ -197,7 +209,12 @@ class CMakeBuildExt(build_ext):
         # Set proper LDFLAGS and CFLAGS instead of CFITSIOLIB/CFITSIOINC
         env["CFLAGS"] = f"-I{install_dir / 'include'}"
         lib_path = str(install_dir / "lib")
-        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        # Use $ORIGIN for RPATH and force old-style RPATH (not RUNPATH) for transitive loading
+        if sys.platform == "linux":
+            rpath_flags = "-Wl,--disable-new-dtags,-rpath,$ORIGIN"
+        else:
+            rpath_flags = f"-Wl,-rpath,@loader_path"
+        ldflags = f"-L{lib_path} {rpath_flags}"
         env["LDFLAGS"] = (
             f"{ldflags} {env['LDFLAGS']}"
             if env.get("LDFLAGS")
@@ -268,7 +285,12 @@ class CMakeBuildExt(build_ext):
         env["WCSLIB_LIBS"] = f"-L{install_dir / 'lib'} -lwcs"
         env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'}"
         lib_path = str(install_dir / "lib")
-        ldflags = f"-L{lib_path} -Wl,-rpath,{lib_path}"
+        # Use $ORIGIN for RPATH and force old-style RPATH (not RUNPATH) for transitive loading
+        if sys.platform == "linux":
+            rpath_flags = "-Wl,--disable-new-dtags,-rpath,$ORIGIN"
+        else:
+            rpath_flags = f"-Wl,-rpath,@loader_path"
+        ldflags = f"-L{lib_path} {rpath_flags}"
         env["LDFLAGS"] = (
             f"{ldflags} {env['LDFLAGS']}"
             if env.get("LDFLAGS")
