@@ -136,7 +136,9 @@ target_include_directories(cpl BEFORE
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
     PUBLIC ${CPL_INCLUDE_DIR})
 target_link_options(cpl PRIVATE
-    $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE}>)
+    $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE}>
+    # Force RPATH instead of RUNPATH for transitive library loading
+    $<$<PLATFORM_ID:Linux>:-Wl,--disable-new-dtags>)
 target_link_libraries(cpl PRIVATE CPL::cpldrs CPL::cpldfs CPL::cplui CPL::cplcore)
 
 set_target_properties(cpl PROPERTIES
