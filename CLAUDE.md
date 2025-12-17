@@ -188,11 +188,12 @@ pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/
 
 Or configure in `pyproject.toml`:
 ```toml
-[tool.uv]
-extra-index-url = ["https://ivh.github.io/pycpl/simple/"]
+[[tool.uv.index]]
+name = "pycpl"
+url = "https://ivh.github.io/pycpl/simple/"
 ```
 
-The `--extra-index-url` allows pip/uv to find pycpl from our index while still using PyPI for dependencies like numpy and astropy.
+This allows pip/uv to find pycpl from our index while still using PyPI for dependencies like numpy and astropy.
 
 ### Creating a New Release
 

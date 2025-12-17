@@ -16,11 +16,16 @@ A few things to note:
 # ...
 dependencies = ['pycpl','pyesorex','edps']
 
-[tool.uv]
-extra-index-url = [
-    "https://ivh.github.io/pycpl/simple/",
-    "https://ftp.eso.org/pub/dfs/pipelines/libraries/"
-]
+[tool.uv.sources]
+pycpl = { index = "pycpl" }
+
+[[tool.uv.index]]
+name = "pycpl"
+url = "https://ivh.github.io/pycpl/simple/"
+
+[[tool.uv.index]]
+name = "eso"
+url = "https://ftp.eso.org/pub/dfs/pipelines/libraries/"
 ```
 
 Original ESO README from here on:
