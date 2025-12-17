@@ -8,6 +8,7 @@ A few things to note:
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
 * There is a GitHub workflow that builds pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
 * For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
+* For local development, use `uv sync --no-install-project` since editable installs don't work with the complex native build.
 * I chose the package version number the same as ESO's, but appending *.post1* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, use only their index and/or install the fixed version number like *pycpl==1.0.3* .
 * The installation instructions below do not apply to this package. Instead do `(uv) pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/` or add the URL to your *pyproject.toml*. Like this, `uv sync` will install *pycpl* from here and *pyesorex* and *edps* from ESO, having them use the bundled pycpl:
 

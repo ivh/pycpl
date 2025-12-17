@@ -266,6 +266,16 @@ pycpl-0.1.0-cp311-cp311-linux_x86_64.whl:
 
 All libraries at wheel root, extension has RPATH to find them.
 
+## Local Development
+
+Editable installs (`uv sync` or `pip install -e`) don't work because the multi-stage native build (cfitsio -> fftw -> wcslib -> CPL -> pybind11) fails when run in temporary directories. Use:
+
+```bash
+uv sync --no-install-project  # Sync dependencies only, skip building pycpl
+```
+
+To test pycpl locally, install a pre-built wheel from the GitHub Pages index or build one with `cibuildwheel`.
+
 ## Development Notes
 
 - **Never** commit changes that would break the vendored library build
