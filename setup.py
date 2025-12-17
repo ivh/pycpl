@@ -123,6 +123,9 @@ class CMakeBuildExt(build_ext):
             "-DUSE_PTHREADS=ON",
             "-DCMAKE_INSTALL_LIBDIR=lib",
         ]
+        # Use absolute install names during build so configure tests work (macOS)
+        if sys.platform == "darwin":
+            cmake_args.append(f"-DCMAKE_INSTALL_NAME_DIR={install_dir / 'lib'}")
         # Force RPATH instead of RUNPATH on Linux for transitive library loading
         if sys.platform == "linux":
             cmake_args.append("-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--disable-new-dtags")
@@ -131,12 +134,7 @@ class CMakeBuildExt(build_ext):
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_subdir, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_subdir, check=True)
 
-        # Fix install names on macOS
-        self._fix_darwin_install_names(
-            install_dir / "lib",
-            ["libcfitsio.10.dylib"],
-        )
-
+        # Note: install names will be fixed after all dependencies are built
         print(">>> cfitsio built successfully")
 
     def _build_fftw(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
@@ -157,6 +155,8 @@ class CMakeBuildExt(build_ext):
             "-DBUILD_SHARED_LIBS=ON",
             "-DENABLE_THREADS=ON",
             "-DCMAKE_INSTALL_LIBDIR=lib",
+            # Use absolute install names during build so configure tests work
+            f"-DCMAKE_INSTALL_NAME_DIR={install_dir / 'lib'}",
         ]
         # Force RPATH instead of RUNPATH on Linux for transitive library loading
         if sys.platform == "linux":
@@ -179,6 +179,8 @@ class CMakeBuildExt(build_ext):
             "-DENABLE_THREADS=ON",
             "-DENABLE_FLOAT=ON",  # Enable single precision
             "-DCMAKE_INSTALL_LIBDIR=lib",
+            # Use absolute install names during build so configure tests work
+            f"-DCMAKE_INSTALL_NAME_DIR={install_dir / 'lib'}",
         ]
         # Force RPATH instead of RUNPATH on Linux for transitive library loading
         if sys.platform == "linux":
@@ -187,15 +189,43 @@ class CMakeBuildExt(build_ext):
         subprocess.run(["cmake", "--build", ".", "-j", njobs], cwd=build_single, check=True)
         subprocess.run(["cmake", "--install", "."], cwd=build_single, check=True)
 
-        self._fix_darwin_install_names(
-            install_dir / "lib",
-            [
-                "libfftw3.3.dylib",
-                "libfftw3_threads.3.dylib",
-                "libfftw3f.3.dylib",
-                "libfftw3f_threads.3.dylib",
-            ],
-        )
+        # Note: install names will be fixed after all dependencies are built
+
+        # Generate pkg-config files (CMake build doesn't create them, but CPL needs them)
+        pkgconfig_dir = install_dir / "lib" / "pkgconfig"
+        pkgconfig_dir.mkdir(parents=True, exist_ok=True)
+
+        # On macOS, include rpath so configure test programs can find the library
+        if sys.platform == "darwin":
+            rpath_flag = f"-Wl,-rpath,{install_dir / 'lib'}"
+        else:
+            rpath_flag = f"-Wl,-rpath,{install_dir / 'lib'}"
+
+        fftw3_pc = f"""prefix={install_dir}
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib
+includedir=${{prefix}}/include
+
+Name: fftw3
+Description: FFTW3 double precision library
+Version: 3.3.10
+Libs: -L${{libdir}} {rpath_flag} -lfftw3
+Cflags: -I${{includedir}}
+"""
+        (pkgconfig_dir / "fftw3.pc").write_text(fftw3_pc)
+
+        fftw3f_pc = f"""prefix={install_dir}
+exec_prefix=${{prefix}}
+libdir=${{exec_prefix}}/lib
+includedir=${{prefix}}/include
+
+Name: fftw3f
+Description: FFTW3 single precision library
+Version: 3.3.10
+Libs: -L${{libdir}} {rpath_flag} -lfftw3f
+Cflags: -I${{includedir}}
+"""
+        (pkgconfig_dir / "fftw3f.pc").write_text(fftw3f_pc)
 
         print(">>> fftw built successfully (both precisions)")
 
@@ -210,10 +240,11 @@ class CMakeBuildExt(build_ext):
         env["CFLAGS"] = f"-I{install_dir / 'include'}"
         lib_path = str(install_dir / "lib")
         # Use $ORIGIN for RPATH and force old-style RPATH (not RUNPATH) for transitive loading
+        # Also include rpath to install_dir/lib so configure test programs can find libraries
         if sys.platform == "linux":
-            rpath_flags = "-Wl,--disable-new-dtags,-rpath,$ORIGIN"
+            rpath_flags = f"-Wl,--disable-new-dtags,-rpath,$ORIGIN,-rpath,{lib_path}"
         else:
-            rpath_flags = f"-Wl,-rpath,@loader_path"
+            rpath_flags = f"-Wl,-rpath,@loader_path,-rpath,{lib_path}"
         ldflags = f"-L{lib_path} {rpath_flags}"
         env["LDFLAGS"] = (
             f"{ldflags} {env['LDFLAGS']}"
@@ -257,11 +288,7 @@ class CMakeBuildExt(build_ext):
             import shutil
             shutil.copy(src_dir / "wcslib.pc", pkgconfig_dir / "wcslib.pc")
 
-        # Fix install names on macOS
-        self._fix_darwin_install_names(
-            install_dir / "lib",
-            ["libwcs.8.dylib"],
-        )
+        # Note: install names will be fixed after all dependencies are built
 
         # Clean up build artifacts
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
@@ -286,10 +313,11 @@ class CMakeBuildExt(build_ext):
         env["CPPFLAGS"] = f"-I{install_dir / 'include'} -I{install_dir / 'include' / 'wcslib'}"
         lib_path = str(install_dir / "lib")
         # Use $ORIGIN for RPATH and force old-style RPATH (not RUNPATH) for transitive loading
+        # Also include rpath to install_dir/lib so configure test programs can find libraries
         if sys.platform == "linux":
-            rpath_flags = "-Wl,--disable-new-dtags,-rpath,$ORIGIN"
+            rpath_flags = f"-Wl,--disable-new-dtags,-rpath,$ORIGIN,-rpath,{lib_path}"
         else:
-            rpath_flags = f"-Wl,-rpath,@loader_path"
+            rpath_flags = f"-Wl,-rpath,@loader_path,-rpath,{lib_path}"
         ldflags = f"-L{lib_path} {rpath_flags}"
         env["LDFLAGS"] = (
             f"{ldflags} {env['LDFLAGS']}"
@@ -324,10 +352,21 @@ class CMakeBuildExt(build_ext):
         subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
         subprocess.run(["make", "install"], cwd=src_dir, check=True)
 
-        # Fix install names on macOS for all CPL libraries
+        # Fix install names on macOS for ALL vendored libraries (deferred until now
+        # so configure test programs can find libraries during build)
         self._fix_darwin_install_names(
             install_dir / "lib",
             [
+                # cfitsio
+                "libcfitsio.10.dylib",
+                # fftw
+                "libfftw3.3.dylib",
+                "libfftw3_threads.3.dylib",
+                "libfftw3f.3.dylib",
+                "libfftw3f_threads.3.dylib",
+                # wcslib
+                "libwcs.8.dylib",
+                # CPL
                 "libcext.0.dylib",
                 "libcplcore.26.dylib",
                 "libcplui.26.dylib",
