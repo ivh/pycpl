@@ -1,9 +1,9 @@
 [project]
 name = "pycpl"
-version = "1.0.3.post5"
+version = "1.0.3.post6"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "European Southern Observatory, Australian Astronomical Optics Macquarie", email = "cpl-help@eso.org"}
@@ -38,7 +38,7 @@ requires = ["setuptools>=70", "wheel", "pybind11", "cmake"]
 build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
-build = ["cp314-*"]
+build = ["cp312-*", "cp313-*", "cp314-*"]
 skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
 build-verbosity = 1
 

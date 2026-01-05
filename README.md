@@ -4,8 +4,11 @@
 
 In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcslib, fftw) included, so they don't have to be installed separately and made to be found by the package.
 
+As of January 2026 this package also contains [pyHDRL](https://www.eso.org/sci/software/pycpl/pyhdrl-site/index.html) (v0.1), including pre-built HDRL and its dependencies.
+
 A few things to note:
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
+* pyHDRL is a subpackage to pycpl, so to import it you do `from cpl import ` 
 * There is a GitHub workflow that builds pre-compiled wheels for Python 3.11 to 3.14 on Linux and MacOS, so installation should be very quick. No Windows support.
 * For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
 * For local development, use `uv sync --no-install-project` since editable installs don't work with the complex native build.
