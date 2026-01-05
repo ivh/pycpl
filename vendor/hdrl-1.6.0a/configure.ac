@@ -138,8 +138,8 @@ GSL_CHECK_LIBS()
 #Check for ERFA
 ESO_CHECK_ERFA
 
-# Check for libcurl presence and usability
-ESO_CHECK_LIBCURL
+# libcurl not needed - hdrl_download functions stubbed out for pycpl wheel build
+# ESO_CHECK_LIBCURL
 
 # Setup pkg-config directory
 if test -z "$pkgconfigdir"; then
@@ -155,8 +155,6 @@ AM_WITH_DMALLOC
 #AC_CONFIG_SUBDIRS(external/sextractor external/swarp)
 
 AC_CONFIG_FILES(Makefile
-                        tests/Makefile
                         catalogue/Makefile
-                        catalogue/tests/Makefile
                         pkgconfig/hdrl.pc)
 AC_OUTPUT

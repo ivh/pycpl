@@ -20,7 +20,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
 
 DISTCLEANFILES = hdrl_version.h.in hdrl_version.h *~
 
-SUBDIRS = catalogue . catalogue/tests tests
+SUBDIRS = catalogue .
 
 EXTRA_DIST =  m4macros/eso.m4 m4macros/cpl-pipeline.m4 hdrl_version.h.top hdrl_version.h.bot pkgconfig/hdrl.pc.in
 
@@ -32,7 +32,7 @@ endif
 
 ACLOCAL_AMFLAGS = -I m4macros
 
-AM_CPPFLAGS = -DCX_LOG_DOMAIN=\"HdrlLib\" -DHDRL_USE_PRIVATE $(CPL_INCLUDES) $(GSL_INCLUDES) $(LIBCURL_CFLAGS) $(ERFA_CFLAGS) -I$(top_srcdir)/catalogue
+AM_CPPFLAGS = -DCX_LOG_DOMAIN=\"HdrlLib\" -DHDRL_USE_PRIVATE $(CPL_INCLUDES) $(GSL_INCLUDES) $(ERFA_CFLAGS) -I$(top_srcdir)/catalogue
 
 BUILT_SOURCES = hdrl_version.h
 
@@ -148,7 +148,7 @@ else
 libhdrl_la_LDFLAGS = $(CPL_LDFLAGS) $(GSL_LDFLAGS) -static
 endif
 libhdrl_la_DEPENDENCIES = catalogue/libcatalogue.la
-libhdrl_la_LIBADD = $(LIBCPLDFS) $(LIBCPLUI) $(LIBCPLDRS) $(LIBCPLCORE) $(GSL_LIBS) $(LIBCURL_LIBS) $(ERFA_LIBS) catalogue/libcatalogue.la
+libhdrl_la_LIBADD = $(LIBCPLDFS) $(LIBCPLUI) $(LIBCPLDRS) $(LIBCPLCORE) $(GSL_LIBS) $(ERFA_LIBS) catalogue/libcatalogue.la
 
 
 
