@@ -46,6 +46,26 @@
 #include "cplui/parameter_bindings.hpp"
 #include "cplui/plugin_bindings.hpp"
 
+// HDRL bindings
+#include "hdrlcore/error_bindings.hpp"
+#include "hdrlcore/image_bindings.hpp"
+#include "hdrlcore/imagelist_bindings.hpp"
+#include "hdrldebug/types_bindings.hpp"
+#include "hdrlfunc/airmass_bindings.hpp"
+#include "hdrlfunc/barycorr_bindings.hpp"
+#include "hdrlfunc/bpm_bindings.hpp"
+#include "hdrlfunc/catalogue_bindings.hpp"
+#include "hdrlfunc/collapse_bindings.hpp"
+#include "hdrlfunc/dar_bindings.hpp"
+#include "hdrlfunc/flat_bindings.hpp"
+#include "hdrlfunc/fpn_bindings.hpp"
+#include "hdrlfunc/fringe_bindings.hpp"
+#include "hdrlfunc/lacosmic_bindings.hpp"
+#include "hdrlfunc/maglim_bindings.hpp"
+#include "hdrlfunc/overscan_bindings.hpp"
+#include "hdrlfunc/resample_bindings.hpp"
+#include "hdrlfunc/strehl_bindings.hpp"
+
 namespace py = pybind11;
 
 /**
@@ -153,4 +173,50 @@ PYBIND11_MODULE(cpl, m)
   bind_photom(cpldrs);
   bind_apertures(cpldrs);
   bind_geom_img(cpldrs);
+
+  // HDRL module (accessible as cpl.hdrl or: from cpl import hdrl)
+  py::module hdrl = m.def_submodule("hdrl", R"pydoc(HDRL - High Level Data Reduction Library
+
+  Python bindings for the ESO High Level Data Reduction Library (HDRL).
+  Provides algorithms for astronomical data reduction including airmass
+  calculation, bad pixel detection, flat fielding, fringing correction,
+  overscan correction, image resampling, and more.
+  )pydoc");
+
+  py::module hdrlcore = hdrl.def_submodule("core", R"pydoc(HDRL Core submodule
+
+  This module provides the core data types required by the HDRL algorithms,
+  including Image (with error propagation) and ImageList.
+  )pydoc");
+  bind_hdrl_errors(hdrlcore);
+  bind_hdrl_image(hdrlcore);
+  bind_hdrl_imagelist(hdrlcore);
+
+  py::module hdrlfunc = hdrl.def_submodule("func", R"pydoc(HDRL Functionalities submodule
+
+  This module provides the Python API for HDRL algorithms including:
+  effective airmass, bad-pixel detection, barycentric correction,
+  flat fielding, fringing, overscan correction, image resampling, and more.
+  )pydoc");
+  bind_airmass(hdrlfunc);
+  bind_barycorr(hdrlfunc);
+  bind_bpm(hdrlfunc);
+  bind_catalogue(hdrlfunc);
+  bind_collapse(hdrlfunc);
+  bind_dar(hdrlfunc);
+  bind_flat(hdrlfunc);
+  bind_fpn(hdrlfunc);
+  bind_fringe(hdrlfunc);
+  bind_lacosmic(hdrlfunc);
+  bind_maglim(hdrlfunc);
+  bind_overscan(hdrlfunc);
+  bind_resample(hdrlfunc);
+  bind_strehl(hdrlfunc);
+
+  py::module hdrldebug = hdrl.def_submodule("debug", R"pydoc(HDRL Debug submodule
+
+  This module provides utilities for testing PyCPL to PyHDRL type converters.
+  Not intended for use by pipeline developers.
+  )pydoc");
+  bind_hdrl_types(hdrldebug);
 }
