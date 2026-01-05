@@ -56,7 +56,7 @@ class CMakeBuildExt(build_ext):
             self.build_extension(ext)
 
     def build_dependencies(self) -> None:
-        """Build vendored C libraries: cfitsio, fftw, wcslib, and cpl"""
+        """Build vendored C libraries: cfitsio, fftw, wcslib, cpl, gsl, erfa, and hdrl"""
         print("=" * 60)
         print("Building vendored C library dependencies")
         print("=" * 60)
@@ -77,33 +77,45 @@ class CMakeBuildExt(build_ext):
         njobs = os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL") or str(multiprocessing.cpu_count())
 
         # Build dependencies with parallelization where possible
-        # Phase 1: Build cfitsio and fftw in parallel (independent)
-        print("\n>>> Phase 1: Building cfitsio and fftw in parallel...")
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        # Phase 1: Build cfitsio, fftw, gsl, erfa in parallel (independent)
+        print("\n>>> Phase 1: Building cfitsio, fftw, gsl, erfa in parallel...")
+        with ThreadPoolExecutor(max_workers=4) as executor:
             future_cfitsio = executor.submit(
                 self._build_cfitsio, vendor_dir, deps_build_dir, deps_install_dir, njobs
             )
             future_fftw = executor.submit(
                 self._build_fftw, vendor_dir, deps_build_dir, deps_install_dir, njobs
             )
+            future_gsl = executor.submit(
+                self._build_gsl, vendor_dir, deps_build_dir, deps_install_dir, njobs
+            )
+            future_erfa = executor.submit(
+                self._build_erfa, vendor_dir, deps_build_dir, deps_install_dir, njobs
+            )
 
-            # Wait for both to complete and handle any errors
-            for future in as_completed([future_cfitsio, future_fftw]):
+            # Wait for all to complete and handle any errors
+            for future in as_completed([future_cfitsio, future_fftw, future_gsl, future_erfa]):
                 future.result()  # Will raise exception if build failed
 
-        print(">>> Phase 1 complete: cfitsio and fftw built successfully")
+        print(">>> Phase 1 complete: cfitsio, fftw, gsl, erfa built successfully")
 
         # Phase 2: Build wcslib (depends on cfitsio)
         print("\n>>> Phase 2: Building wcslib...")
         self._build_wcslib(vendor_dir, deps_build_dir, deps_install_dir, njobs)
 
-        # Phase 3: Build cpl (depends on all three)
+        # Phase 3: Build cpl (depends on cfitsio, fftw, wcslib)
         print("\n>>> Phase 3: Building cpl...")
         self._build_cpl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
 
+        # Phase 4: Build hdrl (depends on cpl, gsl, erfa)
+        print("\n>>> Phase 4: Building hdrl...")
+        self._build_hdrl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+
         # Set CPLDIR environment variable so FindCPL.cmake can find it
         os.environ["CPLDIR"] = str(deps_install_dir)
-        print(f"\nCPLDIR set to: {deps_install_dir}")
+        # Set HDRLDIR for FindHDRL.cmake
+        os.environ["HDRLDIR"] = str(deps_install_dir)
+        print(f"\nCPLDIR/HDRLDIR set to: {deps_install_dir}")
         print("=" * 60)
 
     def _build_cfitsio(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
@@ -379,6 +391,140 @@ Cflags: -I${{includedir}}
         subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
         print(">>> CPL built successfully")
 
+    def _build_gsl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
+        """Build GSL library"""
+        print("\n>>> Building GSL...")
+        src_dir = vendor_dir / "gsl-2.8"
+
+        env = os.environ.copy()
+        lib_path = str(install_dir / "lib")
+        if sys.platform == "linux":
+            rpath_flags = f"-Wl,--disable-new-dtags,-rpath,$ORIGIN,-rpath,{lib_path}"
+        else:
+            rpath_flags = f"-Wl,-rpath,@loader_path,-rpath,{lib_path}"
+        ldflags = f"-L{lib_path} {rpath_flags}"
+        env["LDFLAGS"] = f"{ldflags} {env['LDFLAGS']}" if env.get("LDFLAGS") else ldflags
+        env["LD_LIBRARY_PATH"] = f"{lib_path}:{env['LD_LIBRARY_PATH']}" if env.get("LD_LIBRARY_PATH") else lib_path
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = f"{lib_path}:{env['DYLD_LIBRARY_PATH']}" if env.get("DYLD_LIBRARY_PATH") else lib_path
+
+        # GSL needs autoreconf (doc/ dir removed from sources)
+        if not (src_dir / "configure").exists():
+            print(">>> Regenerating autotools files for GSL...")
+            subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
+
+        subprocess.run([
+            "./configure",
+            f"--prefix={install_dir}",
+            "--disable-static",
+            "--enable-shared",
+        ], cwd=src_dir, env=env, check=True)
+
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
+        subprocess.run(["make", "install"], cwd=src_dir, check=True)
+
+        # Clean up build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        print(">>> GSL built successfully")
+
+    def _build_erfa(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
+        """Build ERFA library"""
+        print("\n>>> Building ERFA...")
+        src_dir = vendor_dir / "erfa-2.0.1"
+
+        env = os.environ.copy()
+        lib_path = str(install_dir / "lib")
+        if sys.platform == "linux":
+            rpath_flags = f"-Wl,--disable-new-dtags,-rpath,$ORIGIN,-rpath,{lib_path}"
+        else:
+            rpath_flags = f"-Wl,-rpath,@loader_path,-rpath,{lib_path}"
+        ldflags = f"-L{lib_path} {rpath_flags}"
+        env["LDFLAGS"] = f"{ldflags} {env['LDFLAGS']}" if env.get("LDFLAGS") else ldflags
+        env["LD_LIBRARY_PATH"] = f"{lib_path}:{env['LD_LIBRARY_PATH']}" if env.get("LD_LIBRARY_PATH") else lib_path
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = f"{lib_path}:{env['DYLD_LIBRARY_PATH']}" if env.get("DYLD_LIBRARY_PATH") else lib_path
+
+        # ERFA needs autoreconf
+        if not (src_dir / "configure").exists():
+            print(">>> Regenerating autotools files for ERFA...")
+            subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
+
+        subprocess.run([
+            "./configure",
+            f"--prefix={install_dir}",
+            "--disable-static",
+            "--enable-shared",
+        ], cwd=src_dir, env=env, check=True)
+
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
+        subprocess.run(["make", "install"], cwd=src_dir, check=True)
+
+        # Clean up build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        print(">>> ERFA built successfully")
+
+    def _build_hdrl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
+        """Build HDRL library"""
+        print("\n>>> Building HDRL...")
+        src_dir = vendor_dir / "hdrl-1.6.0a"
+
+        env = os.environ.copy()
+        env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")
+        env["CPL_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["CPL_LIBS"] = f"-L{install_dir / 'lib'} -lcplcore -lcplui -lcpldfs -lcpldrs -lcext"
+        env["GSL_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["GSL_LIBS"] = f"-L{install_dir / 'lib'} -lgsl -lgslcblas"
+        env["ERFA_CFLAGS"] = f"-I{install_dir / 'include'}"
+        env["ERFA_LIBS"] = f"-L{install_dir / 'lib'} -lerfa"
+        env["CPPFLAGS"] = f"-I{install_dir / 'include'}"
+        lib_path = str(install_dir / "lib")
+        if sys.platform == "linux":
+            rpath_flags = f"-Wl,--disable-new-dtags,-rpath,$ORIGIN,-rpath,{lib_path}"
+        else:
+            rpath_flags = f"-Wl,-rpath,@loader_path,-rpath,{lib_path}"
+        ldflags = f"-L{lib_path} {rpath_flags}"
+        env["LDFLAGS"] = f"{ldflags} {env['LDFLAGS']}" if env.get("LDFLAGS") else ldflags
+        env["LD_LIBRARY_PATH"] = f"{lib_path}:{env['LD_LIBRARY_PATH']}" if env.get("LD_LIBRARY_PATH") else lib_path
+        if sys.platform == "darwin":
+            env["DYLD_LIBRARY_PATH"] = f"{lib_path}:{env['DYLD_LIBRARY_PATH']}" if env.get("DYLD_LIBRARY_PATH") else lib_path
+
+        # Regenerate autotools files if configure is missing
+        if not (src_dir / "configure").exists():
+            print(">>> Regenerating autotools files for HDRL...")
+            subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
+
+        subprocess.run([
+            "./configure",
+            f"--prefix={install_dir}",
+            "--disable-static",
+            "--enable-shared",
+            "--enable-standalone",
+            f"--with-cpl={install_dir}",
+            f"--with-gsl={install_dir}",
+            f"--with-erfa={install_dir}",
+        ], cwd=src_dir, env=env, check=True)
+
+        subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)
+        subprocess.run(["make", "install"], cwd=src_dir, check=True)
+
+        # Fix install names on macOS for all HDRL-related libraries
+        self._fix_darwin_install_names(
+            install_dir / "lib",
+            [
+                # GSL
+                "libgsl.28.dylib",
+                "libgslcblas.0.dylib",
+                # ERFA
+                "liberfa.1.dylib",
+                # HDRL
+                "libhdrl.1.dylib",
+            ],
+        )
+
+        # Clean up build artifacts
+        subprocess.run(["make", "distclean"], cwd=src_dir, check=False)
+        print(">>> HDRL built successfully")
+
     def _fix_darwin_install_names(self, lib_dir: Path, libraries: list[str]) -> None:
         """Fix macOS dylib install names and dependencies to use @rpath so they can be relocated."""
         if sys.platform != "darwin":
@@ -513,6 +659,9 @@ Cflags: -I${{includedir}}
         cpldir = os.environ.get("CPLDIR", None)
         if cpldir is not None:
             cmake_args += [f"-DCPL_ROOT:PATH={Path(cpldir).resolve()}"]
+        hdrldir = os.environ.get("HDRLDIR", None)
+        if hdrldir is not None:
+            cmake_args += [f"-DHDRL_ROOT:PATH={Path(hdrldir).resolve()}"]
         recipedir = os.environ.get("PYCPL_RECIPE_DIR", None)
         if recipedir is not None:
             cmake_args += [f"-DPYCPL_RECIPE_DIR:PATH={Path(recipedir).resolve()}"]
