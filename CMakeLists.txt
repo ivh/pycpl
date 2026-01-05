@@ -45,6 +45,7 @@ list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig)
 find_package(CPL "7.2" REQUIRED COMPONENTS cplcore cplui cpldfs cpldrs)
+find_package(HDRL REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 REQUIRED)
 
@@ -63,7 +64,7 @@ if(NOT EXISTS ${PYCPL_RECIPE_DIR})
     message(VERBOSE "The above path determines the default cpl.ui.Recipe.recipe_dir, and is used at Run-time.")
 endif()
 
-pybind11_add_module(cpl 
+pybind11_add_module(cpl
     src/cplcore/array.cpp
     src/cplcore/bivector.cpp
     src/cplcore/coords.cpp
@@ -120,12 +121,52 @@ pybind11_add_module(cpl
     src/cplui/parameterlist.cpp
     src/cplui/plugin_bindings.cpp
     src/cplui/plugin.cpp
+    src/hdrlcore/error_bindings.cpp
+    src/hdrlcore/error.cpp
+    src/hdrlcore/errorframe.cpp
+    src/hdrlcore/image_bindings.cpp
+    src/hdrlcore/image.cpp
+    src/hdrlcore/imagelist_bindings.cpp
+    src/hdrlcore/imagelist.cpp
+    src/hdrlcore/parameter.cpp
+    src/hdrlcore/pycpl_types.cpp
+    src/hdrldebug/types_bindings.cpp
+    src/hdrldebug/types.cpp
+    src/hdrlfunc/airmass_bindings.cpp
+    src/hdrlfunc/airmass.cpp
+    src/hdrlfunc/barycorr_bindings.cpp
+    src/hdrlfunc/barycorr.cpp
+    src/hdrlfunc/bpm_bindings.cpp
+    src/hdrlfunc/bpm.cpp
+    src/hdrlfunc/catalogue_bindings.cpp
+    src/hdrlfunc/catalogue.cpp
+    src/hdrlfunc/collapse_bindings.cpp
+    src/hdrlfunc/collapse.cpp
+    src/hdrlfunc/dar_bindings.cpp
+    src/hdrlfunc/dar.cpp
+    src/hdrlfunc/flat_bindings.cpp
+    src/hdrlfunc/flat.cpp
+    src/hdrlfunc/fpn_bindings.cpp
+    src/hdrlfunc/fpn.cpp
+    src/hdrlfunc/fringe_bindings.cpp
+    src/hdrlfunc/fringe.cpp
+    src/hdrlfunc/lacosmic_bindings.cpp
+    src/hdrlfunc/lacosmic.cpp
+    src/hdrlfunc/maglim_bindings.cpp
+    src/hdrlfunc/maglim.cpp
+    src/hdrlfunc/overscan_bindings.cpp
+    src/hdrlfunc/overscan.cpp
+    src/hdrlfunc/resample_bindings.cpp
+    src/hdrlfunc/resample.cpp
+    src/hdrlfunc/strehl_bindings.cpp
+    src/hdrlfunc/strehl.cpp
     src/dump_handler.cpp
     src/pycpl.cpp)
 
-target_compile_definitions(cpl PRIVATE 
+target_compile_definitions(cpl PRIVATE
     PYCPL_VERSION=\"${PYCPL_VERSION}\"
     PYCPL_RECIPE_DIR=\"${PYCPL_RECIPE_DIR}\"
+    HDRL_USE_PRIVATE
     $<$<BOOL:${UNIX}>:_XOPEN_SOURCE=700>
     )
 target_compile_options(cpl PRIVATE
@@ -134,12 +175,13 @@ target_compile_options(cpl PRIVATE
     $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE} -fno-omit-frame-pointer>)
 target_include_directories(cpl BEFORE
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PUBLIC ${CPL_INCLUDE_DIR})
+    PUBLIC ${CPL_INCLUDE_DIR} ${HDRL_INCLUDE_DIR}
+    PUBLIC "${HDRL_INCLUDE_DIR}/..")
 target_link_options(cpl PRIVATE
     $<$<AND:$<BOOL:${SANITIZE}>,$<CXX_COMPILER_ID:GNU,Clang,AppleClang>>:-fsanitize=${SANITIZE}>
     # Force RPATH instead of RUNPATH for transitive library loading
     $<$<PLATFORM_ID:Linux>:-Wl,--disable-new-dtags>)
-target_link_libraries(cpl PRIVATE CPL::cpldrs CPL::cpldfs CPL::cplui CPL::cplcore)
+target_link_libraries(cpl PRIVATE HDRL::hdrl CPL::cpldrs CPL::cpldfs CPL::cplui CPL::cplcore)
 
 set_target_properties(cpl PROPERTIES
     C_STANDARD 17
