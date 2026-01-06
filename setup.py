@@ -693,6 +693,7 @@ Cflags: -I${{includedir}}
 setup(
     ext_modules=[CMakeExtension("cpl")],
     cmdclass={"build_ext": CMakeBuildExt},
+    packages=["hdrl"],
     package_data={"": ["*.so", "*.so.*", "*.dylib"]},
     include_package_data=True,
 )

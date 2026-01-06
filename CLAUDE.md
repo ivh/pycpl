@@ -2,7 +2,11 @@
 
 ## Project Overview
 
-PyCPL provides Python bindings for the ESO Common Pipeline Library (CPL) using pybind11. The project bundles all C library dependencies to provide a self-contained wheel that works without system dependencies.
+PyCPL provides Python bindings for the ESO Common Pipeline Library (CPL) and HDRL (High-level Data Reduction Library) using pybind11. The project bundles all C library dependencies to provide a self-contained wheel that works without system dependencies.
+
+The package provides two top-level imports:
+- `import cpl` - CPL bindings
+- `import hdrl` - HDRL bindings (also available as `from cpl import hdrl`)
 
 ## Architecture
 
@@ -15,12 +19,15 @@ vendor/
 ├── cfitsio-4.6.2/      # FITS file I/O
 ├── fftw-3.3.10/        # Fast Fourier Transform (double + single precision)
 ├── wcslib-8.2.2/       # World Coordinate System transformations
-└── cpl-7.3.2/          # ESO Common Pipeline Library
-    ├── libcext/        # CPL extension library
-    ├── cplcore/        # Core CPL functionality
-    ├── cplui/          # User interface components
-    ├── cpldfs/         # Data flow system
-    └── cpldrs/         # Data reduction system
+├── gsl-2.8/            # GNU Scientific Library (for HDRL)
+├── erfa-2.0.1/         # Essential Routines for Fundamental Astronomy (for HDRL)
+├── cpl-7.3.2/          # ESO Common Pipeline Library
+│   ├── libcext/        # CPL extension library
+│   ├── cplcore/        # Core CPL functionality
+│   ├── cplui/          # User interface components
+│   ├── cpldfs/         # Data flow system
+│   └── cpldrs/         # Data reduction system
+└── hdrl-1.6.0a/        # ESO High-level Data Reduction Library
 ```
 
 **Why vendored?** CPL and its dependencies are not available via system package managers on all platforms, and version compatibility is critical.
@@ -31,8 +38,9 @@ vendor/
 
 The build uses a custom `CMakeBuildExt` class that extends setuptools:
 
-1. **Phase 1: Build cfitsio and fftw in parallel**
-   - Built with CMake
+1. **Phase 1: Build cfitsio, fftw, gsl, erfa in parallel**
+   - cfitsio and fftw built with CMake
+   - gsl and erfa built with autotools
    - Installed to `build/temp.*/deps/install/`
    - `-DCMAKE_INSTALL_LIBDIR=lib` forces use of `lib/` not `lib64/` (important for manylinux)
 
@@ -42,16 +50,21 @@ The build uses a custom `CMakeBuildExt` class that extends setuptools:
    - Requires CFITSIO_CFLAGS and LDFLAGS to find vendored cfitsio
 
 3. **Phase 3: Build CPL**
-   - Depends on all previous libraries
+   - Depends on cfitsio, fftw, wcslib
    - Uses autotools
    - `--disable-java` prevents building Java components (would need libtool-ltdl)
    - `JAVA_HOME` unset to prevent Java auto-detection
 
-4. **Phase 4: Build Python extension**
-   - Uses CMake + pybind11
-   - Links against vendored CPL libraries
+4. **Phase 4: Build HDRL**
+   - Depends on CPL, GSL, ERFA
+   - Uses autotools
+   - `--enable-standalone` for standalone library build
 
-5. **Phase 5: Copy vendored libraries**
+5. **Phase 5: Build Python extension**
+   - Uses CMake + pybind11
+   - Links against vendored CPL and HDRL libraries
+
+6. **Phase 6: Copy vendored libraries**
    - All `.so`/`.dylib` files copied alongside extension module
    - Enables self-contained wheels
 
@@ -105,10 +118,10 @@ matrix:
 ### Python Versions
 
 ```toml
-build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+build = ["cp312-*", "cp313-*", "cp314-*"]
 ```
 
-Minimum: Python 3.11 (uses C++17 features)
+Wheels built for Python 3.12+. Package declares `requires-python = ">=3.9"` so older Python can build from source if needed.
 
 ### Platform-Specific Settings
 
@@ -248,19 +261,25 @@ This allows pip/uv to find pycpl from our index while still using PyPI for depen
 ## File Manifest in Wheels
 
 ```
-pycpl-0.1.0-cp311-cp311-linux_x86_64.whl:
-  cpl.cpython-311-x86_64-linux-gnu.so    # Extension module
-  libcext.so.0.2.4                       # Vendored libraries
-  libcfitsio.so.10
-  libcplcore.so.26.3.2
-  libcpldfs.so.26.3.2
-  libcpldrs.so.26.3.2
-  libcplui.so.26.3.2
-  libfftw3.so.3.6.9
-  libfftw3_threads.so.3.6.9
-  libfftw3f.so.3.6.9
-  libfftw3f_threads.so.3.6.9
-  libwcs.so.8.2.2
+pycpl-1.0.3-cp312-cp312-linux_x86_64.whl:
+  cpl.cpython-312-x86_64-linux-gnu.so    # Extension module
+  hdrl/                                   # Pure Python hdrl package
+    __init__.py                           # Re-exports from cpl.hdrl
+  libcext.so.*                            # Vendored libraries
+  libcfitsio.so.*
+  libcplcore.so.*
+  libcpldfs.so.*
+  libcpldrs.so.*
+  libcplui.so.*
+  libfftw3.so.*
+  libfftw3_threads.so.*
+  libfftw3f.so.*
+  libfftw3f_threads.so.*
+  libwcs.so.*
+  libgsl.so.*                             # HDRL dependencies
+  libgslcblas.so.*
+  liberfa.so.*
+  libhdrl.so.*
   [symlinks to versioned .so files]
 ```
 
@@ -284,9 +303,30 @@ To test pycpl locally, install a pre-built wheel from the GitHub Pages index or 
 - Check RPATH on Linux: `patchelf --print-rpath <module>.so`
 - Check install names on macOS: `otool -L <module>.so`
 
+## Upgrading PyCPL/PyHDRL Sources
+
+When ESO releases new versions:
+
+**New PyCPL**: Replace `src/cplcore/`, `src/cpldfs/`, `src/cpldrs/`, `src/cplui/`
+
+**New PyHDRL**: Replace `src/hdrlcore/`, `src/hdrlfunc/`, `src/hdrldebug/`
+  - Re-apply function renames to avoid linker conflicts with CPL:
+
+| Original | Renamed |
+|----------|---------|
+| `bind_errors` (hdrlcore) | `bind_hdrl_errors` |
+| `bind_image` (hdrlcore) | `bind_hdrl_image` |
+| `bind_imagelist` (hdrlcore) | `bind_hdrl_imagelist` |
+| `bind_types` (hdrldebug) | `bind_hdrl_types` |
+
+**pycpl.cpp**: Small file with module init code, manual merge if needed.
+
+**Note**: HDRL's libcurl dependency (hdrl_download.c) is not required - no HDRL algorithm uses it internally and PyHDRL doesn't bind it.
+
 ## References
 
 - CPL Documentation: http://www.eso.org/sci/software/cpl
+- HDRL Documentation: http://www.eso.org/sci/software/hdrl
 - cibuildwheel docs: https://cibuildwheel.readthedocs.io/
 - PEP 503 (Simple Repository API): https://peps.python.org/pep-0503/
 - GitHub Pages: https://pages.github.com/
