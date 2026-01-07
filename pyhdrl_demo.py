@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.9"
 # dependencies = [
 #     "pycpl>=1.0.3.post7",
 #     "numpy",
