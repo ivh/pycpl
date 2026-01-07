@@ -1,6 +1,6 @@
 [project]
 name = "pycpl"
-version = "1.0.3.post7"
+version = "1.0.3.post8"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -43,11 +43,12 @@ skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
 build-verbosity = 1
 
 [tool.cibuildwheel.linux]
-archs = ["x86_64"]
+archs = ["native"]
 before-build = "yum install -y autoconf automake libtool"
 repair-wheel-command = ""
 build = "*manylinux*"
 manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 archs = ["native"]
