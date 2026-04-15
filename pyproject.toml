@@ -46,7 +46,6 @@ build-verbosity = 1
 archs = ["native"]
 before-build = "yum install -y autoconf automake libtool"
 repair-wheel-command = ""
-build = "*manylinux*"
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 
