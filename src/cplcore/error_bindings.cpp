@@ -171,7 +171,7 @@ bind_errors(py::module& m)
       }))
       .def_property_readonly("trace", &cpl::core::Error::trace)
       .def_property_readonly("last", &cpl::core::Error::last)
-      .def("__eq__", &cpl::core::ErrorFrame::operator==)
+      .def("__eq__", &cpl::core::Error::operator==)
       .def("__eq__",
            [](cpl::core::Error& /* self */, py::object /* other */) -> bool {
              return false;

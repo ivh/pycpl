@@ -98,25 +98,34 @@ bind_plugin(py::module& m)
       .def_property_readonly("parameters", &cpl::ui::CRecipe::get_parameters,
                              "A list of recipe parameters and their defaults. "
                              "This is a copy, not a reference.")
-      .def_property("author", &cpl::ui::Recipe::get_author,
-                    &cpl::ui::Recipe::set_author, "Name of the recipe's author")
-      .def_property("copyright", &cpl::ui::Recipe::get_copyright,
-                    &cpl::ui::Recipe::set_copyright,
+      .def_property("author",
+                    [](cpl::ui::CRecipe& self) { return self.get_author(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_author(v); },
+                    "Name of the recipe's author")
+      .def_property("copyright",
+                    [](cpl::ui::CRecipe& self) { return self.get_copyright(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_copyright(v); },
                     "Recipe's license and copyright information. Must be "
                     "compatible with that of CPL.")
-      .def_property("description", &cpl::ui::Recipe::get_description,
-                    &cpl::ui::Recipe::set_description)
-      .def_property("email", &cpl::ui::Recipe::get_email,
-                    &cpl::ui::Recipe::set_email, "Author's contact information")
-      .def_property("synopsis", &cpl::ui::Recipe::get_synopsis,
-                    &cpl::ui::Recipe::set_synopsis,
+      .def_property("description",
+                    [](cpl::ui::CRecipe& self) { return self.get_description(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_description(v); })
+      .def_property("email",
+                    [](cpl::ui::CRecipe& self) { return self.get_email(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_email(v); },
+                    "Author's contact information")
+      .def_property("synopsis",
+                    [](cpl::ui::CRecipe& self) { return self.get_synopsis(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_synopsis(v); },
                     "Detailed description of a plugin.")
-      .def_property(
-          "version", &cpl::ui::Recipe::get_version,
-          py::overload_cast<const std::string&>(&cpl::ui::Recipe::set_version),
-          "Recipe version number")
-      .def_property("name", &cpl::ui::Recipe::get_name,
-                    &cpl::ui::Recipe::set_name, "Unique name of the Recipe")
+      .def_property("version",
+                    [](cpl::ui::CRecipe& self) { return self.get_version(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_version(v); },
+                    "Recipe version number")
+      .def_property("name",
+                    [](cpl::ui::CRecipe& self) { return self.get_name(); },
+                    [](cpl::ui::CRecipe& self, const std::string& v) { self.set_name(v); },
+                    "Unique name of the Recipe")
       .def_property_static(
           "recipe_dir",
           [](py::object /* self */) -> std::vector<std::string> {

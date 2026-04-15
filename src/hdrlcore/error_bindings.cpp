@@ -168,7 +168,7 @@ bind_hdrl_errors(py::module& m)
       }))
       .def_property_readonly("trace", &hdrl::core::Error::trace)
       .def_property_readonly("last", &hdrl::core::Error::last)
-      .def("__eq__", &hdrl::core::ErrorFrame::operator==)
+      .def("__eq__", &hdrl::core::Error::operator==)
       .def("__eq__",
            [](hdrl::core::Error& self, py::object other) { return false; })
       .def("__str__", &hdrl::core::Error::what)
