@@ -49,31 +49,43 @@ bind_overscan(py::module& m)
   py::class_<Overscan, std::shared_ptr<Overscan>> overscan_class(
       m, "Overscan", py::buffer_protocol());
 
+  overscan_class.doc() = R"docstring(
+      The hdrl.func.Overscan class provides an interface to overscan calculations.
+      This module contains functionality to compute and correct the overscan level
+      of CCD image.
+      )docstring";
+
   overscan_class
       .def(py::init<const std::string&, double, int, hdrl::func::Collapse,
                     const hdrl::core::pycpl_window&>(),
            py::arg("direction"), py::arg("ccd_ron"), py::arg("box_hsize"),
-           py::arg("collapse"), py::arg("region"))
+           py::arg("collapse"), py::arg("region"), R"docstring(
+          Create an Overscan computation object.
 
+          Parameters
+          ----------
+              direction : str
+                  HDRL_X_AXIS ("x") or HDRL_Y_AXIS ("y")
+              ccd_ron : float
+                  The CCD read out noise.
+              box_hsize : int
+                  The running box half size.
+              collapse : hdrl.func.Collapse method
+                  Collapse methods as defined in PyHDRL.
+                  Supported methods: hdrl.func.Collapse.Mean, hdrl.func.Collapse.Median, hdrl.func.Collapse.SigClip, hdrl.func.Collapse.MinMax, hdrl.func.Collapse.Mode
+              region : tuple
+                  The overscan computation region.
+        )docstring")
       // Argument image is a std::shared_ptr<hdrl::core::Image>
       .def("compute", &Overscan::compute, py::arg("image"),
-           R"pbdoc(
+           R"docstring(
                  Compute the overscan correction model from an HDRL Image.
 
-                 Parameters:
-                     input_image (Image): The image to compute the overscan model from.
-
-                 Returns:
-                     tuple OverscanResult with:
-                         - correction
-                         - contribution
-                         - chi2
-                         - red_chi2
-                         - sigclip_reject_low
-                         - sigclip_reject_high
-                         - minmax_reject_low
-                         - minmax_reject_high
-            )pbdoc")
+                 Parameters
+                 ----------
+                     image : hdrl.core.Image
+                         The image to compute the overscan model from.
+            )docstring")
 
       .def(
           "correct",
@@ -82,22 +94,47 @@ bind_overscan(py::module& m)
             return self.correct(input_image, region);
           },
           py::arg("input_image"), py::arg("region") = std::nullopt,
-          R"pbdoc(
+          R"docstring(
                   Apply overscan correction to an HDRL Image.
 
-                  Parameters:
-                         input_image (Image): Image to correct.
-                         region (tuple[int, int, int, int], optional): Region to apply correction.
+                  Parameters
+                  ----------
+                      input_image : hdrl.core.Image
+                          Image to correct.
+                      region : tuple[int, int, int, int], optional
+                          Region to apply correction.
 
-                  Returns:
-                        namedtuple OverscanCorrectResult with:
-                        - corrected: corrected image (Image)
-                        - badmask: corresponding bad pixel mask (pycpl_image)
-            )pbdoc")
+                  Returns
+                  -------
+                  OverscanCorrectResult
+                     Tuple with:
+                        - corrected: corrected image (hdrl.core.Image)
+                        - badmask: corresponding bad pixel mask (hdrl.core.pycpl_image)
+            )docstring")
 
       .def_property_readonly("direction", &Overscan::get_direction)
       .def_property_readonly("ccd_ron", &Overscan::get_ccd_ron)
       .def_property_readonly("box_hsize", &Overscan::get_box_hsize)
+      .def_property_readonly("correction", &Overscan::get_correction,
+                             "Correction image from the last compute() call.")
+      .def_property_readonly("contribution", &Overscan::get_contribution,
+                             "Contribution image from the last compute() call.")
+      .def_property_readonly("chi2", &Overscan::get_chi2,
+                             "Chi^2 image from the last compute() call.")
+      .def_property_readonly("red_chi2", &Overscan::get_red_chi2,
+                             "Reduced chi^2 image from the last compute() call.")
+      .def_property_readonly(
+          "sigclip_reject_low", &Overscan::get_sigclip_reject_low,
+          "Sigma-clip low rejection map from the last compute() call.")
+      .def_property_readonly(
+          "sigclip_reject_high", &Overscan::get_sigclip_reject_high,
+          "Sigma-clip high rejection map from the last compute() call.")
+      .def_property_readonly(
+          "minmax_reject_low", &Overscan::get_minmax_reject_low,
+          "Min/max low rejection map from the last compute() call.")
+      .def_property_readonly(
+          "minmax_reject_high", &Overscan::get_minmax_reject_high,
+          "Min/max high rejection map from the last compute() call.")
       .def_property_readonly("overscan_region", &Overscan::get_overscan_region,
                              "Returns the overscan region as a Window object.");
 }

@@ -375,9 +375,9 @@ struct type_caster<hdrl::core::pycpl_table>
                     array.cast<std::vector<std::string>>();
                 std::vector<char*> strings;
                 strings.reserve(slist.size());
-                std::transform(slist.begin(), slist.end(),
-                               std::back_inserter(strings),
-                               [](std::string& s) { return (char*)s.data(); });
+                std::transform(
+                    slist.begin(), slist.end(), std::back_inserter(strings),
+                    [](std::string& s) -> char* { return (char*)s.data(); });
                 cpl_array* data_view =
                     cpl_array_wrap_string(strings.data(), strings.size());
                 cpl_table_set_array(table.t, cname.c_str(), aidx, data_view);

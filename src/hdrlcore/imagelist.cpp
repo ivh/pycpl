@@ -24,7 +24,6 @@
 #include <cpl_imagelist_io.h>
 #include <hdrl_image.h>
 #include <hdrl_imagelist_basic.h>
-#include <hdrl_imagelist_io.h>
 
 #include "hdrlcore/error.hpp"
 #include "hdrlcore/image.hpp"

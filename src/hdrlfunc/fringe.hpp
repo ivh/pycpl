@@ -42,31 +42,29 @@ class Fringe
   // Constructors
   Fringe();
 
-  // Result structures
-  struct ComputeResult
-  {
-    std::shared_ptr<Image> master;
-    hdrl::core::pycpl_image contrib_map;
-    hdrl::core::pycpl_table qctable;
-  };
-
   struct CorrectResult
   {
     hdrl::core::pycpl_table qctable;
   };
 
   // Compute methods
-  ComputeResult compute(std::shared_ptr<ImageList> ilist_fringe,
-                        hdrl::core::pycpl_imagelist ilist_obj,
-                        pycpl_mask stat_mask, Collapse collapse_params);
+  void compute(std::shared_ptr<ImageList> ilist_fringe,
+               hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
+               Collapse collapse_params);
+  std::shared_ptr<Image> get_master() const;
+  hdrl::core::pycpl_image get_contrib_map() const;
+  hdrl::core::pycpl_table get_qctable() const;
 
   CorrectResult
   correct(std::shared_ptr<ImageList> ilist_fringe,
           hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
-          std::shared_ptr<Image> masterfringe);
+          std::shared_ptr<Image> masterfringe = nullptr);
 
  protected:
-  // No internal state needed for fringe functions
+  void ensure_compute() const;
+  std::shared_ptr<Image> m_master;
+  hdrl::core::pycpl_image m_contrib_map;
+  hdrl::core::pycpl_table m_qctable;
 };
 
 }  // namespace func

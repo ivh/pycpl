@@ -116,7 +116,7 @@ Catalogue::compute(hdrl::core::pycpl_image image,
   // default-constructed with pl = nullptr
 
   // Clean up the C result structure
-  hdrl_catalogue_result_delete(result);
+  hdrl::core::Error::throw_errors_with(hdrl_catalogue_result_delete, result);
 
   return catalogue_result;
 }

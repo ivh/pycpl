@@ -130,6 +130,8 @@ pybind11_add_module(cpl
     src/hdrlcore/imagelist.cpp
     src/hdrlcore/parameter.cpp
     src/hdrlcore/pycpl_types.cpp
+    src/hdrlcore/spectrum_bindings.cpp
+    src/hdrlcore/spectrum.cpp
     src/hdrldebug/types_bindings.cpp
     src/hdrldebug/types.cpp
     src/hdrlfunc/airmass_bindings.cpp
@@ -144,6 +146,8 @@ pybind11_add_module(cpl
     src/hdrlfunc/collapse.cpp
     src/hdrlfunc/dar_bindings.cpp
     src/hdrlfunc/dar.cpp
+    src/hdrlfunc/efficiency_bindings.cpp
+    src/hdrlfunc/efficiency.cpp
     src/hdrlfunc/flat_bindings.cpp
     src/hdrlfunc/flat.cpp
     src/hdrlfunc/fpn_bindings.cpp
@@ -158,6 +162,8 @@ pybind11_add_module(cpl
     src/hdrlfunc/overscan.cpp
     src/hdrlfunc/resample_bindings.cpp
     src/hdrlfunc/resample.cpp
+    src/hdrlfunc/response_bindings.cpp
+    src/hdrlfunc/response.cpp
     src/hdrlfunc/strehl_bindings.cpp
     src/hdrlfunc/strehl.cpp
     src/dump_handler.cpp

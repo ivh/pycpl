@@ -50,6 +50,7 @@
 #include "hdrlcore/error_bindings.hpp"
 #include "hdrlcore/image_bindings.hpp"
 #include "hdrlcore/imagelist_bindings.hpp"
+#include "hdrlcore/spectrum_bindings.hpp"
 #include "hdrldebug/types_bindings.hpp"
 #include "hdrlfunc/airmass_bindings.hpp"
 #include "hdrlfunc/barycorr_bindings.hpp"
@@ -57,6 +58,7 @@
 #include "hdrlfunc/catalogue_bindings.hpp"
 #include "hdrlfunc/collapse_bindings.hpp"
 #include "hdrlfunc/dar_bindings.hpp"
+#include "hdrlfunc/efficiency_bindings.hpp"
 #include "hdrlfunc/flat_bindings.hpp"
 #include "hdrlfunc/fpn_bindings.hpp"
 #include "hdrlfunc/fringe_bindings.hpp"
@@ -64,6 +66,7 @@
 #include "hdrlfunc/maglim_bindings.hpp"
 #include "hdrlfunc/overscan_bindings.hpp"
 #include "hdrlfunc/resample_bindings.hpp"
+#include "hdrlfunc/response_bindings.hpp"
 #include "hdrlfunc/strehl_bindings.hpp"
 
 namespace py = pybind11;
@@ -191,6 +194,7 @@ PYBIND11_MODULE(cpl, m)
   bind_hdrl_errors(hdrlcore);
   bind_hdrl_image(hdrlcore);
   bind_hdrl_imagelist(hdrlcore);
+  bind_spectrum1d(hdrlcore);
 
   py::module hdrlfunc = hdrl.def_submodule("func", R"pydoc(HDRL Functionalities submodule
 
@@ -204,6 +208,7 @@ PYBIND11_MODULE(cpl, m)
   bind_catalogue(hdrlfunc);
   bind_collapse(hdrlfunc);
   bind_dar(hdrlfunc);
+  bind_efficiency(hdrlfunc);
   bind_flat(hdrlfunc);
   bind_fpn(hdrlfunc);
   bind_fringe(hdrlfunc);
@@ -211,6 +216,7 @@ PYBIND11_MODULE(cpl, m)
   bind_maglim(hdrlfunc);
   bind_overscan(hdrlfunc);
   bind_resample(hdrlfunc);
+  bind_response(hdrlfunc);
   bind_strehl(hdrlfunc);
 
   py::module hdrldebug = hdrl.def_submodule("debug", R"pydoc(HDRL Debug submodule

@@ -84,7 +84,7 @@ bind_fpn(py::module& m)
         
         The final mask used to derive std and std_mad is attached to the
         power_spectrum image as a normal cpl mask and can be retrieved using
-        cpl_image_get_bpm(power_spectrum).
+        power_spectrum.bpm.
         
         Raises
         ------

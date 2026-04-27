@@ -45,11 +45,13 @@ Dar::Result
 Dar::compute(hdrl::core::Value lambdaRef, hdrl::core::pycpl_vector lambdaIn)
 {
   // Create output vectors with the same size as lambdaIn
+  cpl_errorstate prestate = cpl_errorstate_get();
   cpl_size size = cpl_vector_get_size(lambdaIn.v);
   cpl_vector* xShift = cpl_vector_new(size);
   cpl_vector* yShift = cpl_vector_new(size);
   cpl_vector* xShiftErr = cpl_vector_new(size);
   cpl_vector* yShiftErr = cpl_vector_new(size);
+  hdrl::core::Error::throw_errors_after(prestate);
 
   // Use Error::throw_errors_with pattern for automatic error handling
   hdrl::core::Error::throw_errors_with(hdrl_dar_compute, m_interface,
@@ -62,6 +64,14 @@ Dar::compute(hdrl::core::Value lambdaRef, hdrl::core::pycpl_vector lambdaIn)
   result.yShift = hdrl::core::pycpl_vector(yShift);
   result.xShiftErr = hdrl::core::pycpl_vector(xShiftErr);
   result.yShiftErr = hdrl::core::pycpl_vector(yShiftErr);
+
+  // Clean up
+  prestate = cpl_errorstate_get();
+  cpl_vector_delete(xShift);
+  cpl_vector_delete(yShift);
+  cpl_vector_delete(xShiftErr);
+  cpl_vector_delete(yShiftErr);
+  hdrl::core::Error::throw_errors_after(prestate);
 
   return result;
 }

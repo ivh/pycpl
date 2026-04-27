@@ -35,12 +35,10 @@ void
 bind_barycorr(py::module& m)
 {
   py::class_<Barycorr, std::shared_ptr<Barycorr>>(m, "Barycorr")
-      .def(py::init<double, double, double>(), py::arg("ra"), py::arg("dec"),
-           py::arg("mjd_obs"),
-           R"docstring(
-            Initialize a Barycorr object with right ascension, declination, 
-            and observation time (MJD).
-            )docstring")
+      .def(py::init(), R"docstring(
+           The hdrl.func.Barycorr class provides an interface to 
+           calculation of the barycentric correction.
+      )docstring")
 
       .def_static(
           "compute",
@@ -69,7 +67,8 @@ bind_barycorr(py::module& m)
           py::arg("humidity") = Barycorr::kHumidityDefault,
           py::arg("wavelength") = Barycorr::kWavelengthDefault,
           R"docstring(
-            Compute the barycentric correction for an observation.
+            Compute the barycentric correction for an observation, using the ERFA function
+            eraApco13().
 
             Parameters
             ----------
@@ -78,30 +77,24 @@ bind_barycorr(py::module& m)
             observer : tuple
                 A tuple (lat, lon, height) where latitude and longitude are in degrees,
                 and height is in meters.
-            eop_table : cpl_table
+            eop_table : cpl.core.Table
                 The Earth Orientation Parameter (EOP) table.
             mjd_obs : float
                 Modified Julian Date of the observation.
             time_to_mid_exposure : float
                 Time to mid exposure in seconds.
             pressure : float, optional
-                Atmospheric pressure in hPa (default: 1013.15).
+                Atmospheric pressure in hPa (default: 0.0).
             temperature : float, optional
-                Ambient temperature in Kelvin (default: 288.15).
+                Ambient temperature in degrees Celsius (default: 0.0).
             humidity : float, optional
                 Relative humidity (0 to 1, default: 0.0).
             wavelength : float, optional
-                Observing wavelength in nanometers (default: 550.0 nm, typical V-band).
+                Observing wavelength in micrometers (default: 0.0).
 
             Returns
             -------
             float
                 Computed barycentric correction in m/s.
-        )docstring")
-
-      .def_property_readonly("ra", &Barycorr::get_ra,
-                             "Right Ascension (degrees)")
-      .def_property_readonly("dec", &Barycorr::get_dec, "Declination (degrees)")
-      .def_property_readonly("mjd_obs", &Barycorr::get_mjd_obs,
-                             "Observation time (MJD)");
+        )docstring");
 }

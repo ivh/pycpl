@@ -36,10 +36,6 @@ bind_fringe(py::module& m)
   auto fringe_class =
       py::class_<hdrl::func::Fringe, std::shared_ptr<hdrl::func::Fringe>>(
           m, "Fringe", py::buffer_protocol());
-  auto fringecomputeresult_class =
-      py::class_<hdrl::func::Fringe::ComputeResult,
-                 std::shared_ptr<hdrl::func::Fringe::ComputeResult>>(
-          m, "FringeComputeResult");
   auto fringecorrectresult_class =
       py::class_<hdrl::func::Fringe::CorrectResult,
                  std::shared_ptr<hdrl::func::Fringe::CorrectResult>>(
@@ -86,10 +82,10 @@ bind_fringe(py::module& m)
         # Compute master fringe pattern
         # ilist_fringe is an hdrl.core.ImageList with fringe images
         # ilist_obj is optional cpl.core.ImageList with object masks (can be None)
-        result = fringe.compute(ilist_fringe, ilist_obj, stat_mask, collapse)
-        master_fringe = result.master
-        contrib_map = result.contrib_map
-        qctable = result.qctable
+        fringe.compute(ilist_fringe, ilist_obj, stat_mask, collapse)
+        master_fringe = fringe.master
+        contrib_map = fringe.contrib_map
+        qctable = fringe.qctable
 
         # Example 2: Apply fringe correction
         
@@ -114,10 +110,8 @@ bind_fringe(py::module& m)
              std::shared_ptr<hdrl::core::ImageList> ilist_fringe,
              hdrl::core::pycpl_imagelist ilist_obj,
              hdrl::core::pycpl_mask stat_mask,
-             hdrl::func::Collapse collapse_params)
-              -> hdrl::func::Fringe::ComputeResult {
-            return self.compute(ilist_fringe, ilist_obj, stat_mask,
-                                collapse_params);
+             hdrl::func::Collapse collapse_params) {
+            self.compute(ilist_fringe, ilist_obj, stat_mask, collapse_params);
           },
           py::arg("ilist_fringe"), py::arg("ilist_obj") = py::none(),
           py::arg("stat_mask") = py::none(), py::arg("collapse_params"),
@@ -143,11 +137,7 @@ bind_fringe(py::module& m)
                
                Returns
                -------
-               FringeComputeResult
-                   Result object containing:
-                   - master: hdrl.core.Image - Master fringe pattern
-                   - contrib_map: cpl.core.Image - Contribution map
-                   - qctable: cpl.core.Table - Quality control table
+               None
                
                Raises
                ------
@@ -157,6 +147,13 @@ bind_fringe(py::module& m)
                    If ilist_obj dimensions don't match ilist_fringe, or if
                    stat_mask dimensions don't match fringe images.
            )docstring")
+      .def_property_readonly("master", &hdrl::func::Fringe::get_master,
+                             "Master fringe pattern from the last compute() call.")
+      .def_property_readonly("contrib_map",
+                             &hdrl::func::Fringe::get_contrib_map,
+                             "Contribution map from the last compute() call.")
+      .def_property_readonly("qctable", &hdrl::func::Fringe::get_qctable,
+                             "QC table from the last compute() call.")
       .def(
           "correct",
           [](hdrl::func::Fringe& self,
@@ -169,7 +166,7 @@ bind_fringe(py::module& m)
                                 masterfringe);
           },
           py::arg("ilist_fringe"), py::arg("ilist_obj") = py::none(),
-          py::arg("stat_mask") = py::none(), py::arg("masterfringe"),
+          py::arg("stat_mask") = py::none(), py::arg("masterfringe") = py::none(),
           R"docstring(
                Apply fringe correction to images using a master fringe pattern.
                
@@ -188,7 +185,8 @@ bind_fringe(py::module& m)
                    Optional static mask for fringe regions. If provided, must have
                    same dimensions as fringe images. Default is None.
                masterfringe : hdrl.core.Image
-                   Master fringe pattern to use for correction.
+                   Master fringe pattern to use for correction. If None, uses
+                   the master computed by compute().
                
                Returns
                -------
@@ -210,36 +208,6 @@ bind_fringe(py::module& m)
                The correction is applied in-place to the images in ilist_fringe.
                The method modifies the input images directly.
            )docstring");
-
-  // FringeComputeResult
-  fringecomputeresult_class.doc() = R"docstring(
-      A hdrl.func.FringeComputeResult class is a container for the results of hdrl.func.Fringe.compute().
-      The results consist of a master fringe pattern, contribution map, and quality control table.
-      
-      These can be accessed via the master, contrib_map, and qctable attributes of the object.
-      
-      Example
-      -------
-      .. code-block:: python
-          
-          result = fringe.compute(ilist_fringe, ilist_obj, stat_mask, collapse_params)
-          master_fringe = result.master
-          contrib_map = result.contrib_map
-          qctable = result.qctable
-      )docstring";
-
-  fringecomputeresult_class
-      .def_readonly("master", &hdrl::func::Fringe::ComputeResult::master,
-                    "hdrl.core.Image : Master fringe pattern")
-      .def_readonly("contrib_map",
-                    &hdrl::func::Fringe::ComputeResult::contrib_map,
-                    "cpl.core.Image : Contribution map")
-      .def_readonly("qctable", &hdrl::func::Fringe::ComputeResult::qctable,
-                    "cpl.core.Table : Quality control table")
-      .def("__repr__", [](const hdrl::func::Fringe::ComputeResult&) {
-        return "FringeComputeResult(master=<hdrl.core.Image>, "
-               "contrib_map=<cpl.core.Image>, qctable=<cpl.core.Table>)";
-      });
 
   // FringeCorrectResult
   fringecorrectresult_class.doc() = R"docstring(

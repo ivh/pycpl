@@ -38,6 +38,7 @@ namespace func
 {
 using hdrl::core::Error;
 using hdrl::core::Image;
+using hdrl::core::InvalidTypeError;
 using hdrl::core::pycpl_image;
 
 Collapse::Collapse(std::string m)
@@ -242,7 +243,8 @@ Collapse::get_nhigh()
     return Error::throw_errors_with(hdrl_collapse_minmax_parameter_get_nhigh,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "nhigh attribute only defined for hdrl.func.Collapse.MinMax");
   }
 }
@@ -254,7 +256,8 @@ Collapse::get_nlow()
     return Error::throw_errors_with(hdrl_collapse_minmax_parameter_get_nlow,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "nlow attribute only defined for hdrl.func.Collapse.MinMax");
   }
 }
@@ -266,7 +269,8 @@ Collapse::get_histo_min()
     return Error::throw_errors_with(hdrl_collapse_mode_parameter_get_histo_min,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "histo_min attribute only defined for hdrl.func.Collapse.Mode");
   }
 }
@@ -278,7 +282,8 @@ Collapse::get_histo_max()
     return Error::throw_errors_with(hdrl_collapse_mode_parameter_get_histo_max,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "histo_max attribute only defined for hdrl.func.Collapse.Mode");
   }
 }
@@ -290,7 +295,8 @@ Collapse::get_bin_size()
     return Error::throw_errors_with(hdrl_collapse_mode_parameter_get_bin_size,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "bin_size attribute only defined for hdrl.func.Collapse.Mode");
   }
 }
@@ -302,7 +308,8 @@ Collapse::get_method()
     return Error::throw_errors_with(hdrl_collapse_mode_parameter_get_method,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "method attribute only defined for hdrl.func.Collapse.Mode");
   }
 }
@@ -314,7 +321,8 @@ Collapse::get_error_niter()
     return Error::throw_errors_with(
         hdrl_collapse_mode_parameter_get_error_niter, m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "error_niter attribute only defined for hdrl.func.Collapse.Mode");
   }
 }
@@ -326,7 +334,8 @@ Collapse::get_kappa_high()
     return Error::throw_errors_with(
         hdrl_collapse_sigclip_parameter_get_kappa_high, m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "kappa_high attribute only defined for hdrl.func.Collapse.Sigclip");
   }
 }
@@ -338,7 +347,8 @@ Collapse::get_kappa_low()
     return Error::throw_errors_with(
         hdrl_collapse_sigclip_parameter_get_kappa_low, m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "kappa_low attribute only defined for hdrl.func.Collapse.Sigclip");
   }
 }
@@ -350,7 +360,8 @@ Collapse::get_niter()
     return Error::throw_errors_with(hdrl_collapse_sigclip_parameter_get_niter,
                                     m_interface);
   } else {
-    throw std::runtime_error(
+    throw InvalidTypeError(
+        HDRL_ERROR_LOCATION,
         "niter attribute only defined for hdrl.func.Collapse.Sigclip");
   }
 }

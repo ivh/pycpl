@@ -21,6 +21,7 @@
 #include <optional>
 #include <string>
 
+#include <cpl_image.h>
 #include <hdrl_overscan.h>
 #include <hdrl_parameter.h>
 #include <hdrl_utils.h>
@@ -44,7 +45,7 @@ class Overscan
   Overscan(const std::string& direction, double ccd_ron, int box_hsize,
            Collapse collapse, const hdrl::core::pycpl_window& region);
 
-  py::object compute(std::shared_ptr<hdrl::core::Image> input_image);
+  void compute(std::shared_ptr<hdrl::core::Image> input_image);
   py::object
   correct(std::shared_ptr<hdrl::core::Image> input_image,
           std::optional<hdrl::core::pycpl_window> region = std::nullopt);
@@ -58,10 +59,28 @@ class Overscan
   int get_box_hsize() const { return m_box_hsize; }
 
   hdrl::core::pycpl_window get_overscan_region() const;
+  std::shared_ptr<hdrl::core::Image> get_correction() const;
+  hdrl::core::pycpl_image get_contribution() const;
+  hdrl::core::pycpl_image get_chi2() const;
+  hdrl::core::pycpl_image get_red_chi2() const;
+  hdrl::core::pycpl_image get_sigclip_reject_low() const;
+  hdrl::core::pycpl_image get_sigclip_reject_high() const;
+  hdrl::core::pycpl_image get_minmax_reject_low() const;
+  hdrl::core::pycpl_image get_minmax_reject_high() const;
 
  private:
+  void ensure_result() const;
+
   hdrl_parameter* m_interface = nullptr;
   hdrl_overscan_compute_result* m_result = nullptr;
+  std::shared_ptr<hdrl::core::Image> m_correction;
+  const cpl_image* m_contribution = nullptr;
+  const cpl_image* m_chi2 = nullptr;
+  const cpl_image* m_red_chi2 = nullptr;
+  const cpl_image* m_sigclip_reject_low = nullptr;
+  const cpl_image* m_sigclip_reject_high = nullptr;
+  const cpl_image* m_minmax_reject_low = nullptr;
+  const cpl_image* m_minmax_reject_high = nullptr;
 
   // Save constructor args
   std::string m_direction;

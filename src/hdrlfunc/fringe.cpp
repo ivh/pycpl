@@ -34,7 +34,7 @@ Fringe::Fringe()
   // No initialization needed for fringe functions
 }
 
-Fringe::ComputeResult
+void
 Fringe::compute(std::shared_ptr<ImageList> ilist_fringe,
                 hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
                 Collapse collapse_params)
@@ -65,12 +65,9 @@ Fringe::compute(std::shared_ptr<ImageList> ilist_fringe,
       &qctable                // cpl_table** qctable
   );
 
-  // Create the result struct
-  ComputeResult result = {std::make_shared<Image>(Image(master)),
-                          hdrl::core::pycpl_image(contrib_map),
-                          hdrl::core::pycpl_table(qctable)};
-
-  return result;
+  m_master = std::make_shared<Image>(Image(master));
+  m_contrib_map = hdrl::core::pycpl_image(contrib_map);
+  m_qctable = hdrl::core::pycpl_table(qctable);
 }
 
 Fringe::CorrectResult
@@ -87,8 +84,8 @@ Fringe::correct(std::shared_ptr<ImageList> ilist_fringe,
   }
 
   if (!masterfringe) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
-                                     "masterfringe cannot be None");
+    ensure_compute();
+    masterfringe = m_master;
   }
 
   // Handle optional ilist_obj parameter
@@ -110,6 +107,36 @@ Fringe::correct(std::shared_ptr<ImageList> ilist_fringe,
   CorrectResult result = {hdrl::core::pycpl_table(qctable)};
 
   return result;
+}
+
+void
+Fringe::ensure_compute() const
+{
+  if (!m_master) {
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "Fringe results not available. Call compute() first.");
+  }
+}
+
+std::shared_ptr<Image>
+Fringe::get_master() const
+{
+  ensure_compute();
+  return m_master;
+}
+
+hdrl::core::pycpl_image
+Fringe::get_contrib_map() const
+{
+  ensure_compute();
+  return m_contrib_map;
+}
+
+hdrl::core::pycpl_table
+Fringe::get_qctable() const
+{
+  ensure_compute();
+  return m_qctable;
 }
 
 }  // namespace func

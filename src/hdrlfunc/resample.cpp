@@ -66,6 +66,7 @@ Resample::imagelist_to_table(std::shared_ptr<ImageList> himlist, pycpl_wcs wcs)
 pycpl_table
 Resample::restable_template(int nrows)
 {
+  cpl_errorstate prestate = cpl_errorstate_get();
   cpl_table* tab = cpl_table_new(nrows);
   /* create the table columns */
   cpl_table_new_column(tab, HDRL_RESAMPLE_TABLE_RA,
@@ -92,6 +93,7 @@ Resample::restable_template(int nrows)
   cpl_table_fill_column_window_int(tab, HDRL_RESAMPLE_TABLE_BPM, 0, nrows, 0);
   cpl_table_fill_column_window_double(tab, HDRL_RESAMPLE_TABLE_ERRORS, 0, nrows,
                                       0.);
+  Error::throw_errors_after(prestate);
   return pycpl_table(tab);
 }
 

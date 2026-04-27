@@ -35,50 +35,41 @@ namespace func
 // Default atmospheric constants used in barycentric correction calculations
 // ----------------------------------------------------------------------------
 
-// Mean sea level pressure in hPa
-constexpr double kPressureDefault = 1013.25;
+// Pressure [hPa]
+constexpr double kPressureDefault = 0.;
 
-// Standard ambient temperature in Kelvin (≈ 15°C)
-constexpr double kTemperatureDefault = 288.15;
+// Temperature [deg Celsius]
+constexpr double kTemperatureDefault = 0.;
 
-// Typical relative humidity (dry - 10%)
-constexpr double kHumidityDefault = 0.1;
+// Humidity [range 0-1]
+constexpr double kHumidityDefault = 0.;
 
-// Default wavelength in nm (green light, typical for visible instruments)
-constexpr double kWavelengthDefault = 550.0;
+// Wavelength [micrometer]
+constexpr double kWavelengthDefault = 0.;
 
 class Barycorr
 {
  public:
-  /// Standard atmospheric pressure at sea level in hPa
-  static constexpr double kPressureDefault = 1013.25;
+  /// Pressure [hPa]
+  static constexpr double kPressureDefault = 0.;
 
-  /// Standard temperature (15°C) in Kelvin
-  static constexpr double kTemperatureDefault = 288.15;
+  /// Temperature [deg Celsius]
+  static constexpr double kTemperatureDefault = 0.;
 
-  /// Typical dry-air relative humidity
-  static constexpr double kHumidityDefault = 0.1;
+  /// Humidity [range 0-1]
+  static constexpr double kHumidityDefault = 0.;
 
-  /// Default wavelength (green light, central V-band) in nm
-  static constexpr double kWavelengthDefault = 550.0;
+  /// Wavelength [micrometer]
+  static constexpr double kWavelengthDefault = 0.;
 
-  Barycorr(double ra, double dec, double mjd_obs);
+  Barycorr();
   static double
   compute(double ra, double dec, const hdrl::core::pycpl_table& eop_table,
-          double mjd_obs, double lat, double lon, double hveight,
+          double mjd_obs, double lat, double lon, double height,
           double time_to_mid_exposure, double pressure = kPressureDefault,
           double temperature = kTemperatureDefault,
           double humidity = kHumidityDefault,
           double wavelength = kWavelengthDefault);
-
-  double get_ra() const;
-  double get_dec() const;
-  double get_mjd_obs() const;
-
- private:
-  double ra_;
-  double dec_;
-  double mjd_obs_;
 };
 
 }  // namespace func

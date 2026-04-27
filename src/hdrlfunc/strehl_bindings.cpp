@@ -45,7 +45,36 @@ bind_strehl(py::module& m)
            py::arg("flux_radius"), py::arg("bkg_radius_low"),
            py::arg("bkg_radius_high"),
            R"docstring(
-            Initialize a Strehl object with its 8 scalar parameters.
+            The hdrl.func.Strehl class provides an interface to Strehl computation.
+
+            The most commonly used metrics for evaluating the AO correction is the Strehl
+            ratio. The Strehl ratio is defined as the ratio of the peak image intensity
+            from a point source compared to the maximum attainable intensity using an
+            ideal optical system limited only by diffraction over the telescope aperture.
+            The Strehl ratio is very frequently used to perform the quality control of
+            the scientific data obtained with the AO assisted instrumentation.
+
+            The class provides one main method:
+            - compute(): Compute the Strehl ratio on an image.
+
+            Parameters
+            ----------
+            wavelength : float
+                Nominal filter wavelength [m].
+            m1 : float
+                Primary mirror radius [m].
+            m2 : float
+                Obstruction radius [m].
+            pixel_scale_x : float
+                Image X pixel scale in [arcsec].
+            pixel_scale_y : float
+                Image Y pixel scale in [arcsec].
+            flux_radius : float
+                Radius used to sum the flux [arcsec].
+            bkg_radius_low : float
+                Radius used to determine the background [arcsec].
+            bkg_radius_high : float
+                Radius used to determine the background [arcsec].
             )docstring")
       .def(
           "compute",
@@ -55,6 +84,8 @@ bind_strehl(py::module& m)
           },
           py::arg("himage"),
           R"docstring(
+      Compute the Strehl ratio on an image.
+
       The raw image is assumed to be pre-processed to remove the instrument
       signatures (bad pixels, etc.) and the natural noise sources (sky background,
       etc.). Nethertheless this function allows also the user to correct a residual
@@ -71,11 +102,13 @@ bind_strehl(py::module& m)
 
       Parameters
       ----------
-      himage : The image to process
+      himage : hdrl.core.Image
+          The image to process
 
       Returns
       -------
-      strehl_result: The Strehl value object
+      StrehlResult
+          The Strehl value object
 
       )docstring")
       .def_property_readonly("wavelength", &Strehl::get_wavelength,
@@ -94,16 +127,10 @@ bind_strehl(py::module& m)
                              "Background radius high");
 
   strehlresult_class.doc() = R"docstring(
-      A hdrl.func.StrehlResult class is a container for the results of hdrl.func.Strehl.compute().
-      The results consist of ... a number of values.
+      The hdrl.func.StrehlResult class provides an interface to the results of the Strehl ratio computation.
 
-      These can be accessed via ... getters.
+      StrehlResult contains the computed Strehl value and its error.
 
-      Example
-      -------
-      .. code-block:: python
-
-        result = hdrl.func.Strehl.compute(...)
       )docstring";
 
   strehlresult_class

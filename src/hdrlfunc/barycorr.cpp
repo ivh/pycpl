@@ -29,10 +29,7 @@ namespace func
 {
 // Constructor Implementation
 // Define the constructor
-Barycorr::Barycorr(double ra, double dec, double mjd_obs)
-    : ra_(ra), dec_(dec), mjd_obs_(mjd_obs)
-{
-}
+Barycorr::Barycorr() {}
 
 // Compute Barycentric Correction
 double
@@ -58,24 +55,6 @@ Barycorr::compute(double ra, double dec,
   return bc_velocity;
 }
 
-// Getter methods
-double
-hdrl::func::Barycorr::get_ra() const
-{
-  return ra_;
-}
-
-double
-hdrl::func::Barycorr::get_dec() const
-{
-  return dec_;
-}
-
-double
-hdrl::func::Barycorr::get_mjd_obs() const
-{
-  return mjd_obs_;
-}
 
 }  // namespace func
 }  // namespace hdrl
