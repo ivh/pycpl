@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#     "pycpl>=1.0.3.post7",
+#     "pycpl>=1.0.3.post11",
 #     "numpy",
 # ]
 #
@@ -119,6 +119,27 @@ def main():
     error_pl.append("BUNIT", "electrons")
     hdrl_result.error.save(output_file, error_pl, cplcore.io.EXTEND)
     print(f"Appended error image as extension")
+
+    # --- New in PyHDRL 0.2.0: Spectrum1D ---
+    print("\n--- Spectrum1D Demo (new in PyHDRL 0.2.0) ---")
+    wavelengths = np.linspace(4000.0, 7000.0, 1000)
+    continuum = 50.0 + 0.01 * (wavelengths - 5500.0)
+    line = 200.0 * np.exp(-((wavelengths - 6563.0) / 5.0) ** 2)  # H-alpha
+    flux = continuum + line + np.random.normal(0, 2.0, wavelengths.size)
+    flux_error = np.sqrt(np.abs(flux))
+
+    spec = hdrlcore.Spectrum1D(flux, flux_error, wavelengths, scale="linear")
+    print(f"Spectrum1D: {spec.size()} points, scale={spec.get_scale()}")
+    print(f"  wavelength range: {spec.get_wavelengths()[0]:.1f} - {spec.get_wavelengths()[-1]:.1f}")
+    print(f"  peak flux: {spec.get_flux().max():.2f}")
+
+    # Scale by a flux-calibration constant; flux errors scale accordingly
+    cal = 1.5e-17  # erg/s/cm^2/Angstrom per ADU
+    scaled = spec.mul_scalar_create(cal)
+    mid = scaled.size() // 2
+    f0 = scaled.get_flux()[mid]
+    e0 = scaled.get_flux_error()[mid]
+    print(f"  after flux calibration: center flux={f0:.3e} +/- {e0:.3e}")
 
 if __name__ == "__main__":
     main()
