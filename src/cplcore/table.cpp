@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <complex>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include <cpl_memory.h>
 
@@ -126,10 +127,9 @@ Table::wrap_string(const std::vector<std::string>& data,
                    const std::string& name)
 {
   char** cstrings = (char**)cpl_calloc(data.size(), sizeof(char*));
-  for (int i = 0; i < data.size(); i++) {
-    cstrings[i] =
-        strdup(data[i].c_str());  // returns pointer to a string, which is a
-                                  // duplicate of the string
+  for (size_t i = 0; i < data.size(); ++i) {
+    // returns pointer to a string, which is a duplicate of the string
+    cstrings[i] = strdup(data[i].c_str());
   }
   Error::throw_errors_with(cpl_table_wrap_string, m_interface, cstrings,
                            name.c_str());
@@ -145,7 +145,10 @@ Table::copy_structure(const Table& other)
                            other.m_interface);
 }
 
-Table::~Table() { Error::throw_errors_with(cpl_table_delete, m_interface); }
+Table::~Table()
+{
+  Error::throw_errors_with(cpl_table_delete, m_interface);
+}
 
 size
 Table::get_nrow() const
@@ -247,7 +250,7 @@ void
 Table::set_column_dimensions(const std::string& name,
                              const std::vector<int>& dimensions)
 {
-  auto dims_ptr = cpl::core::vector_as_temp_array_int(dimensions);
+  const_array_view dims_ptr = make_array_view<int>(dimensions);
   Error::throw_errors_with(cpl_table_set_column_dimensions, m_interface,
                            name.c_str(), dims_ptr.get());
 }
@@ -374,8 +377,8 @@ Table::fill_column_window_array(const std::string& name, size start, size count,
 void
 Table::copy_data_int(const std::string& name, std::vector<int>& data)
 {
-  if (data.size() != get_nrow()) {
-    // Data is not the same length as the number of table rows
+  if (data.size() != static_cast<decltype(data.size())>(get_nrow())) {
+    // FIXME: Data is not the same length as the number of table rows
   }
   Error::throw_errors_with(cpl_table_copy_data_int, m_interface, name.c_str(),
                            &data[0]);
@@ -436,7 +439,7 @@ Table::copy_data_string(const std::string& name, std::vector<std::string>& data)
 {
   const char** cstrings =
       (const char**)cpl_calloc(data.size(), sizeof(const char*));
-  for (int i = 0; i < data.size(); i++) {
+  for (size_t i = 0; i < data.size(); ++i) {
     cstrings[i] = data[i].c_str();
   }
   Error::throw_errors_with(cpl_table_copy_data_string, m_interface,
@@ -1151,7 +1154,7 @@ Table::load_window(const std::string& filename, int xtnum, bool check_nulls,
                                           (cpl_array*)NULL, firstrow, nrow));
   }
   cpl_array* selcol = cpl_array_new(selcol_vector.size(), CPL_TYPE_STRING);
-  for (int i = 0; i < selcol_vector.size(); i++) {
+  for (size_t i = 0; i < selcol_vector.size(); ++i) {
     cpl_array_set_string(selcol, i, selcol_vector[i].c_str());
   }
   Table retTable(Error::throw_errors_with(cpl_table_load_window,

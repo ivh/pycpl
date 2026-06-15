@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -130,15 +130,16 @@ fit_lvmq(
     int tol_count, int max_iterations)
 {
   if (participating_parameters.has_value() &&
-      starting_guess_params.get_size() != participating_parameters->size()) {
+      (static_cast<size_t>(starting_guess_params.get_size()) !=
+       participating_parameters->size())) {
     throw cpl::core::IncompatibleInputError(
         PYCPL_ERROR_LOCATION,
         "participating_parameters (ia) must match size of "
         "starting_guess_params (a)");
   }
 
-  size d = x_positions.get_ncol();
-  size m = starting_guess_params.get_size();
+  size_t d = x_positions.get_ncol();
+  size_t m = starting_guess_params.get_size();
   std::exception_ptr last_thrown;
 
   // The following lambda logic could have gone into the trampoline functions

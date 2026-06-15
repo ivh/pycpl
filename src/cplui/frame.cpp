@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -47,7 +47,10 @@ FileNotFoundException::what() const throw()
 };
 #endif
 
-Frame::Frame(cpl_frame* external) { m_interface = external; };
+Frame::Frame(cpl_frame* external)
+{
+  m_interface = external;
+};
 
 Frame::Frame(std::filesystem::path filename, std::string tag,
              cpl_frame_group group, cpl_frame_level level, cpl_frame_type type)

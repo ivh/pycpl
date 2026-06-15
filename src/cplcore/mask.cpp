@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ Mask::Mask(cpl::core::size width, cpl::core::size height, std::string bitmask)
     //     reinterpret_cast<const unsigned char *>(bitmask.c_str()))))
     : m_interface(cpl_mask_new(width, height))
 {
-  if (bitmask.length() != get_size()) {
+  if (bitmask.length() != static_cast<size_t>(get_size())) {
     throw IllegalInputError(
         PYCPL_ERROR_LOCATION,
         "Mask input string size doesn't match width * height");
@@ -359,7 +359,7 @@ Mask::move(size nb_cut, const std::vector<size>& positions)
    *
    *
    */
-  if (nb_cut * nb_cut != positions.size()) {
+  if (static_cast<size_t>(nb_cut * nb_cut) != positions.size()) {
     throw IllegalInputError(PYCPL_ERROR_LOCATION,
                             "positions not equal to nb_cut^2");
   }
@@ -417,7 +417,8 @@ Mask::unwrap(Mask&& self)
   return {interface};
 }
 
-Mask::operator std::string() const
+Mask::
+operator std::string() const
 {
   return std::string(reinterpret_cast<const char*>(data()));
 }

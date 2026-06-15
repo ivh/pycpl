@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -73,7 +73,10 @@ Vector::wrap(size n, double* data)
   return Vector(Error::throw_errors_with(cpl_vector_wrap, n, data));
 }
 
-Vector::~Vector() { Error::throw_errors_with(cpl_vector_delete, m_interface); }
+Vector::~Vector()
+{
+  Error::throw_errors_with(cpl_vector_delete, m_interface);
+}
 
 void*
 Vector::unwrap()

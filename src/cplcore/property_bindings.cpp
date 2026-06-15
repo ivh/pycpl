@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -359,7 +359,7 @@ bind_propertylist(py::module& m)
       .def("__contains__",
            [](const cpl::core::PropertyList& self,
               const cpl::core::Property& find) -> bool {
-             for (size_t i = 0; i < self.get_size(); ++i) {
+             for (size i = 0; i < self.get_size(); ++i) {
                if (self.get(i) == find) {
                  return true;
                }

@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <cpl_memory.h>
 #include <pybind11/complex.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
 #include "cplcore/coords.hpp"
@@ -107,7 +108,7 @@ image_from_python_matrix(cpl_type image_type, py::object matrix)
     throw py::type_error(
         std::string(
             "expected sized iterable (len >0) of sized iterables, not ") +
-        matrix.get_type().attr("__name__").cast<std::string>());
+        py::type::of(matrix).attr("__name__").cast<std::string>());
   }
 
   std::shared_ptr<cpl::core::ImageBase> new_image =
@@ -159,8 +160,9 @@ image_from_arr(py::iterable obj)
     input_arr = (py::array)obj;  // Convert arg to numpy array
   }
   catch (const py::cast_error& /* unused */) {
-    throw py::type_error(std::string("expected numpy compatible array, not ") +
-                         obj.get_type().attr("__name__").cast<std::string>());
+    throw py::type_error(
+        std::string("expected numpy compatible array, not ") +
+        py::type::of(obj).attr("__name__").cast<std::string>());
   }
 
   py::buffer buf;
@@ -168,9 +170,10 @@ image_from_arr(py::iterable obj)
     buf = input_arr.cast<py::buffer>();
   }
   catch (const py::cast_error& /* unused */) {
-    throw py::type_error(std::string("expected numpy array, or implementor of "
-                                     "cpython buffer protocol, not ") +
-                         obj.get_type().attr("__name__").cast<std::string>());
+    throw py::type_error(
+        std::string("expected numpy array, or implementor of "
+                    "cpython buffer protocol, not ") +
+        py::type::of(obj).attr("__name__").cast<std::string>());
   }
 
   py::buffer_info info = buf.request();
@@ -214,7 +217,7 @@ image_from_arr(py::iterable obj)
     if (!py::hasattr(input_arr, "dtype")) {
       throw py::type_error(
           std::string("expected numpy array, not ") +
-          input_arr.get_type().attr("__name__").cast<std::string>());
+          py::type::of(input_arr).attr("__name__").cast<std::string>());
     }
 
     py::object numpy_dtype = input_arr.attr("dtype");
@@ -242,7 +245,7 @@ image_from_arr(py::iterable obj)
       throw py::type_error(
           std::string("numpy array is expected to be one of"
                       " the supported cpl types, not ") +
-          numpy_dtype.get_type().attr("__name__").cast<std::string>());
+          py::type::of(numpy_dtype).attr("__name__").cast<std::string>());
     }
   }
 }
@@ -358,7 +361,9 @@ bind_image(py::module& m)
                  throw cpl::core::IllegalInputError(
                      PYCPL_ERROR_LOCATION,
                      std::string("expected numpy compatible array, not ") +
-                         data.get_type().attr("__name__").cast<std::string>());
+                         py::type::of(data)
+                             .attr("__name__")
+                             .cast<std::string>());
                }
                // Cast to buffer to get info
                py::buffer buf;
@@ -370,7 +375,9 @@ bind_image(py::module& m)
                      PYCPL_ERROR_LOCATION,
                      std::string("expected numpy array, or implementor of "
                                  "cpython buffer protocol, not ") +
-                         data.get_type().attr("__name__").cast<std::string>());
+                         py::type::of(data)
+                             .attr("__name__")
+                             .cast<std::string>());
                }
 
                py::buffer_info info = buf.request();
@@ -1081,8 +1088,7 @@ bind_image(py::module& m)
              std::vector<std::optional<generic_pixel>> pixels,
              size index) -> void {
             size self_image_count = self->get_size();
-
-            size_t input_pixels = pixels.size();
+            size input_pixels = pixels.size();
 
             if ((index < 0) || (input_pixels + index > self_image_count)) {
       // If this error is in place, the AccessOutOfRangeError is not
@@ -1097,10 +1103,10 @@ bind_image(py::module& m)
                   "set_pixels data would run the masks' end, or is placed "
                   "before its beginning (negative index).");
             }
-            int width = self->get_width();
+            size width = self->get_width();
 
-            for (int ipix = 0; ipix < input_pixels; ipix++) {
-              int idx = index + ipix;
+            for (size ipix = 0; ipix < input_pixels; ++ipix) {
+              size idx = index + ipix;
               if (idx < self_image_count) {
                 // This is the inverse of the idx = row*width + column
                 // calculation Both have to include the width - this is not a
@@ -1118,8 +1124,8 @@ bind_image(py::module& m)
                 //     x = idx % width
                 //     y = int(idx / width )
                 //     print (idx,x,y)
-                int x = idx % width;
-                int y = (int)(idx / width);
+                size x = idx % width;
+                size y = static_cast<size>(idx / width);
 
                 if (pixels[ipix].has_value()) {
                   self->set_either(y, x, std::variant(*pixels[ipix]));
@@ -3785,7 +3791,7 @@ bind_image(py::module& m)
                    catch (const py::cast_error& /* unused */) {
                      throw py::type_error(
                          std::string("expected numpy compatible array, not ") +
-                         it.get_type().attr("__name__").cast<std::string>());
+                         py::type::of(it).attr("__name__").cast<std::string>());
                    }
 
                    self->append(input_im);

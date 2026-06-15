@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ Polynomial::copy(const Polynomial& other)
 double
 Polynomial::get_coeff(const std::vector<size>& pows) const
 {
-  if (pows.size() != get_dimension()) {
+  if (pows.size() != static_cast<decltype(pows.size())>(get_dimension())) {
     std::ostringstream ss;
     ss << "get_coeff takes a list of exactly ";
     ss << get_dimension() << " length (dimensionality), but was received ";
@@ -111,7 +111,7 @@ Polynomial::get_coeff(const std::vector<size>& pows) const
 void
 Polynomial::set_coeff(const std::vector<size>& pows, double value)
 {
-  if (pows.size() != get_dimension()) {
+  if (pows.size() != static_cast<decltype(pows.size())>(get_dimension())) {
     std::ostringstream ss;
     ss << "set_coeff takes a list of exactly ";
     ss << get_dimension() << " length (dimensionality), but was received ";
@@ -225,26 +225,28 @@ Polynomial::fit(const cpl::core::Matrix& samppos,
   // The rest of the checks (samppos matrix matching dimensionality x |fitvals|)
   // are done inside cpl_polynomial_fit.
   if (sampsym.has_value()) {
-    if (sampsym->size() != get_dimension()) {
+    if (sampsym->size() !=
+        static_cast<decltype(sampsym->size())>(get_dimension())) {
       throw cpl::core::IncompatibleInputError(
           PYCPL_ERROR_LOCATION,
           "sampsym must match Polynomial's dimensionality");
     }
     // Create cpl_boolean array, because thats what CPL uses
-    int len = sampsym.value().size();
+    size_t len = sampsym.value().size();
     sampsym_ptr = new cpl_boolean[len];
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; ++i) {
       sampsym_ptr[i] = (cpl_boolean)((bool)sampsym.value()[i]);
     }
   }
   if (mindeg.has_value()) {
-    if (mindeg->size() != get_dimension()) {
+    if (mindeg->size() !=
+        static_cast<decltype(mindeg->size())>(get_dimension())) {
       throw cpl::core::IncompatibleInputError(
           PYCPL_ERROR_LOCATION,
           "mindeg must match Polynomial's dimensionality");
     }
   }
-  if (maxdeg.size() != get_dimension()) {
+  if (maxdeg.size() != static_cast<decltype(maxdeg.size())>(get_dimension())) {
     throw cpl::core::IncompatibleInputError(
         PYCPL_ERROR_LOCATION, "maxdeg must match Polynomial's dimensionality");
   }

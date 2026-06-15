@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -68,7 +68,10 @@ Matrix::Matrix(size rows, size columns, const std::vector<double>& data)
   }
 }
 
-Matrix::~Matrix() { Error::throw_errors_with(cpl_matrix_delete, m_interface); }
+Matrix::~Matrix()
+{
+  Error::throw_errors_with(cpl_matrix_delete, m_interface);
+}
 
 std::string
 Matrix::dump() const
@@ -507,12 +510,12 @@ Matrix::solve_lu(Matrix& rhs, std::optional<std::vector<int>> perm) const
 {
   cpl::core::Matrix rhs_dup = rhs.duplicate();
   if (perm.has_value()) {
-    auto perm_arr = vector_as_temp_array_int(perm.value());
+    array_view perm_arr = make_array_view<int>(perm.value());
     Error::throw_errors_with(cpl_matrix_solve_lu, m_interface, rhs_dup.ptr(),
                              perm_arr.get());
   } else {
     Error::throw_errors_with(cpl_matrix_solve_lu, m_interface, rhs_dup.ptr(),
-                             (cpl_array*)NULL);
+                             nullptr);
   }
   return rhs_dup;
 }

@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -103,7 +103,10 @@ ImageBase::ImageBase(cpl::core::size width, cpl::core::size height,
   std::memcpy(data_ptr, pixbuf.c_str(), pixbuf.length());
 }
 
-ImageBase::~ImageBase() { cpl_image_delete(m_interface); }
+ImageBase::~ImageBase()
+{
+  cpl_image_delete(m_interface);
+}
 
 size
 ImageBase::get_width() const
@@ -551,7 +554,8 @@ ImageBase::unwrap(ImageBase&& self)
   return interface;
 }
 
-ImageBase::operator std::string() const
+ImageBase::
+operator std::string() const
 {
   return std::string(reinterpret_cast<const char*>(data()));
 }
@@ -1266,7 +1270,7 @@ ImageBase::fft(std::optional<std::shared_ptr<ImageBase>> img_imag,
       (double _Complex*)cpl_calloc(image_size, sizeof(double _Complex));
 
   for (int i = 0; i < image_size; i++) {
-    double(&z)[2] = reinterpret_cast<double(&)[2]>(output_data[i]);
+    double (&z)[2] = reinterpret_cast<double (&)[2]>(output_data[i]);
     z[0] = real_data[i];
     // TODO: Document details regarding the cpl fft convention to help explain
     // the sign flip.

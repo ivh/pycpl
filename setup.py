@@ -14,10 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import glob as globmod
 import os
 import sys
 import subprocess
 import multiprocessing
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -117,6 +119,16 @@ class CMakeBuildExt(build_ext):
         os.environ["HDRLDIR"] = str(deps_install_dir)
         print(f"\nCPLDIR/HDRLDIR set to: {deps_install_dir}")
         print("=" * 60)
+
+    @staticmethod
+    def _touch_autotools_files(src_dir: Path) -> None:
+        """Touch autotools-generated files to prevent make from trying to regenerate them."""
+        patterns = ["aclocal.m4", "configure", "config.h.in", "Makefile.in",
+                     "*/Makefile.in", "*/*/Makefile.in", "*/*/*/Makefile.in"]
+        now = time.time()
+        for pat in patterns:
+            for f in globmod.glob(str(src_dir / pat)):
+                os.utime(f, (now, now))
 
     def _build_cfitsio(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
         """Build cfitsio library"""
@@ -275,6 +287,7 @@ Cflags: -I${{includedir}}
                 else lib_path
             )
 
+        self._touch_autotools_files(src_dir)
         subprocess.run([
             "./configure",
             f"--prefix={install_dir}",
@@ -353,6 +366,7 @@ Cflags: -I${{includedir}}
             print(">>> Regenerating autotools files for CPL...")
             subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
 
+        self._touch_autotools_files(src_dir)
         subprocess.run([
             "./configure",
             f"--prefix={install_dir}",
@@ -413,6 +427,7 @@ Cflags: -I${{includedir}}
             print(">>> Regenerating autotools files for GSL...")
             subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
 
+        self._touch_autotools_files(src_dir)
         subprocess.run([
             "./configure",
             f"--prefix={install_dir}",
@@ -449,6 +464,7 @@ Cflags: -I${{includedir}}
             print(">>> Regenerating autotools files for ERFA...")
             subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
 
+        self._touch_autotools_files(src_dir)
         subprocess.run([
             "./configure",
             f"--prefix={install_dir}",
@@ -493,6 +509,7 @@ Cflags: -I${{includedir}}
             print(">>> Regenerating autotools files for HDRL...")
             subprocess.run(["autoreconf", "-i"], cwd=src_dir, env=env, check=True)
 
+        self._touch_autotools_files(src_dir)
         subprocess.run([
             "./configure",
             f"--prefix={install_dir}",

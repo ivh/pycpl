@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ namespace py = pybind11;
 void
 bind_photom(py::module& m)
 {
-  py::module photom = m.def_submodule(
+  py::module_ photom = m.def_submodule(
       "photom", "High-level functions that are photometry related");
   // cpl_unit enum is only seemingly used for cpl_photom so it should be fine to
   // put it here

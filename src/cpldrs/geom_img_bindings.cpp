@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ using size = cpl::core::size;
 void
 bind_geom_img(py::module& m)
 {
-  py::module geom_img = m.def_submodule(
+  py::module_ geom_img = m.def_submodule(
       "geometric_transforms",
       "Functions to compute the shift-and-add operation on an image list.");
 

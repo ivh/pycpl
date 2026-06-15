@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -85,7 +85,10 @@ Recipe::run(std::shared_ptr<FrameSet> set,
   return set;
 };
 
-Recipe::Recipe() { m_interface = (cpl_recipe*)calloc(1, sizeof(cpl_recipe)); };
+Recipe::Recipe()
+{
+  m_interface = (cpl_recipe*)calloc(1, sizeof(cpl_recipe));
+};
 
 // Initialise require fields
 Recipe::Recipe(const std::string& recipe_name, const std::string& author,
@@ -194,7 +197,7 @@ std::string
 Recipe::get_email()
 {
   return std::string(cpl::core::Error::throw_errors_with(
-      cpl_plugin_get_name, (cpl_plugin*)m_interface));
+      cpl_plugin_get_email, (cpl_plugin*)m_interface));
 }
 
 void
@@ -259,8 +262,13 @@ Recipe::set_version(const std::string& version)
 
 CRecipe::CRecipe(std::string recipe_name) : Recipe()
 {
+  find_recipes();
   std::map<std::string, std::string>::iterator it =
       library_locations.find(recipe_name);
+  if (it == library_locations.end()) {
+    set_recipe_dir(recipe_dir);
+    it = library_locations.find(recipe_name);
+  }
   if (it != library_locations.end()) {
     cpl_pluginlist* so_interface = cpl_pluginlist_new();
     dl_handle =
@@ -445,41 +453,76 @@ CRecipe::get_parameters()
   return std::make_shared<ParameterList>(duplicate);
 }
 
+/**
+ * \brief Search for recipes in a given directory
+ * \param dir Path to an \em existing directory
+ *
+ * \pre The argument \c dir is a valid path to an exisiting directory
+ *
+ * Search for recipes in the directory \c dir by loading any shared
+ * object library found in the given directory and check for a valid
+ * recipe signature, i.e. the symbol \c cpl_plugin_get_info is provided.
+ */
 void
-CRecipe::set_recipe_dir(const std::vector<std::string>& dir_list)
+CRecipe::scan_directory(const std::string& dir)
 {
-  library_locations.clear();  // Clear current map of old directory
   cpl_pluginlist* pluginlist = cpl_pluginlist_new();
-  for (const std::string& dir : dir_list) {
-    // Go through all files in dir including subdirectories
-    for (auto file : std::filesystem::recursive_directory_iterator(
-             dir,
-             std::filesystem::directory_options::follow_directory_symlink)) {
-      std::string path = file.path();
-      if (!path.compare(path.size() - 3, 3,
-                        ".so")) {  // Recipes must be in .so format
-        void* handle = dlopen(std::string(file.path()).c_str(), RTLD_LAZY);
-        if (!handle) {  // Error with opening library, then its not usable
-          continue;
-        }
-        int (*getPlugin)(cpl_pluginlist*);
-        getPlugin =
-            (int (*)(cpl_pluginlist*))dlsym(handle, "cpl_plugin_get_info");
-        if (getPlugin != NULL) {  // If not null, lib contained the symbol and
-                                  // thus is a valid plugin
-          getPlugin(pluginlist);
-          std::string recipe_name = std::string(
-              cpl_plugin_get_name(cpl_pluginlist_get_last(pluginlist)));
-          library_locations.insert(
-              std::make_pair(recipe_name, file.path()));  // Add to location map
-        }
-        dlclose(handle);
+  for (auto file : std::filesystem::recursive_directory_iterator(
+           dir, std::filesystem::directory_options::follow_directory_symlink)) {
+    std::string path = file.path();
+    if (!path.compare(path.size() - 3, 3,
+                      ".so")) {  // Recipes must be in .so format
+      void* handle = dlopen(std::string(file.path()).c_str(), RTLD_LAZY);
+      if (!handle) {  // Error with opening library, then its not usable
+        continue;
       }
+      int (*getPlugin)(cpl_pluginlist*);
+      getPlugin =
+          (int (*)(cpl_pluginlist*))dlsym(handle, "cpl_plugin_get_info");
+      if (getPlugin != NULL) {  // If not null, lib contained the symbol and
+                                // thus is a valid plugin
+        getPlugin(pluginlist);
+        std::string recipe_name = std::string(
+            cpl_plugin_get_name(cpl_pluginlist_get_last(pluginlist)));
+        library_locations.insert(
+            std::make_pair(recipe_name, file.path()));  // Add to location map
+      }
+      dlclose(handle);
     }
   }
   cpl_pluginlist_delete(
       pluginlist);  // Delete the pluginlist: we just wanted the available
                     // recipes and their location.
+}
+
+void
+CRecipe::find_recipes()
+{
+  for (const std::string& dir : recipe_dir) {
+    std::filesystem::file_status state = std::filesystem::status(dir);
+    if ((!std::filesystem::exists(state) ||
+         !std::filesystem::is_directory(state)) ||
+        (scanned_dirs.count(dir) != 0)) {
+      continue;
+    }
+    scan_directory(dir);
+    scanned_dirs.insert(dir);
+  }
+}
+
+void
+CRecipe::set_recipe_dir(const std::vector<std::string>& dir_list)
+{
+  library_locations.clear();  // Clear current map of old directory
+  scanned_dirs.clear();
+  for (const std::string& dir : dir_list) {
+    std::filesystem::file_status state = std::filesystem::status(dir);
+    if (std::filesystem::exists(state) &&
+        std::filesystem::is_directory(state)) {
+      scan_directory(dir);
+      scanned_dirs.insert(dir);
+    }
+  }
   recipe_dir = dir_list;
 }
 
@@ -493,6 +536,7 @@ CRecipe::get_recipe_dir()
 std::vector<std::string>
 CRecipe::list()
 {
+  find_recipes();
   std::vector<std::string> nameList;
   for (auto const& entry : library_locations) {
     nameList.push_back(entry.first);
@@ -503,6 +547,7 @@ CRecipe::list()
 std::map<std::string, std::string> CRecipe::library_locations =
     std::map<std::string, std::string>();
 
+std::set<std::string> CRecipe::scanned_dirs = std::set<std::string>();
 
 std::vector<std::string> CRecipe::recipe_dir = std::vector<std::string>();
 

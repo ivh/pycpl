@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <exception>
 
 #include <pybind11/eval.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
 #include "cplcore/propertylist.hpp"
@@ -142,6 +143,23 @@ bind_wcs(py::module& m)
     - cpl.drs.WCS.trans_mode.WORLD2STD: Converts from world to standard coordinates
     - cpl.drs.WCS.trans_mode.PHYS2STD: Converts from physical to standard coordinates
     )mydelim")
+      // To allow a complete reconstruction of the WCS instance in Python
+      // modules through a custom type caster, like PyHDRL, provide an opaque
+      // handle to the native WCS object, which can be used to clone the full
+      // WCS. Because there is no public PyCPL C++ API, which would allow to
+      // just return a shared pointer, the python capsule machinery has to be
+      // used here.
+      .def_property_readonly(
+          "_handle",
+          [](cpl::drs::WCS& wcs) -> py::object {
+            const cpl_wcs* wcsdata = wcs.ptr();
+            if (wcsdata == nullptr) {
+              return py::none();
+            }
+            return py::capsule(wcsdata, "cpl_native_wcs_info",
+                               static_cast<void (*)(void*)>(nullptr));
+          },
+          "Opaque handle to the internal WCS representation.")
       .def_property_readonly(
           "image_naxis", &cpl::drs::WCS::get_image_naxis,
           "Dimensionality of the image associated with a WCS.")

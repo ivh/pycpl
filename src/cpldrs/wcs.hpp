@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -210,6 +210,14 @@ class WCS
    *     or NULL on error.
    */
   cpl::core::Matrix get_cd() const;  // TODO: cpl seems to return null
+
+  /**
+   * @brief Accessor to get a handle to the native CPL WCS representation
+   *
+   * @return A handle to the internal CPL WCS representation, or NULL on error.
+   */
+  const cpl_wcs* ptr() const noexcept;
+
  private:
   cpl_wcs* m_interface;
 };

@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,13 +23,16 @@
 #include <string>
 #include <vector>
 
+#include <cpl_array.h>
 #include <cpl_memory.h>
 #include <cpl_table.h>
 #include <pybind11/complex.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
+#include "cplcore/array.hpp"
 #include "cplcore/error.hpp"
 #include "cplcore/table.hpp"
 #include "cplcore/type_bindings.hpp"
@@ -38,8 +41,19 @@
 
 namespace py = pybind11;
 
+using cpl::core::cpl_array_get_data;
 using size = cpl::core::size;
 using namespace py::literals;
+
+template <typename T>
+inline static cpl::core::array_view
+make_array_view(py::array array)
+{
+  py::buffer_info buffer = array.request();
+  T* buffer_data = static_cast<T*>(buffer.ptr);
+  return cpl::core::array_view(
+      cpl::core::cpl_array_wrap(buffer_data, buffer.size), cpl_array_unwrap);
+}
 
 cpl_array*
 py_array_to_cpl(py::object obj)
@@ -51,7 +65,7 @@ py_array_to_cpl(py::object obj)
   catch (const py::cast_error& /* unused */) {
     std::ostringstream err_msg;
     err_msg << "expected numpy compatible type, not"
-            << obj.get_type().attr("__name__").cast<std::string>();
+            << py::type::of(obj).attr("__name__").cast<std::string>();
     throw cpl::core::InvalidTypeError(PYCPL_ERROR_LOCATION,
                                       err_msg.str().c_str());
   }
@@ -66,18 +80,51 @@ py_array_to_cpl(py::object obj)
   }
 
   switch (np_derived_type.value()) {
+    case CPL_TYPE_INT: {
+      cpl::core::array_view data_view = make_array_view<int>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
+    case CPL_TYPE_LONG:
+    case CPL_TYPE_LONG_LONG: {
+      cpl::core::array_view data_view = make_array_view<long long>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
+    case CPL_TYPE_FLOAT: {
+      cpl::core::array_view data_view = make_array_view<float>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
+    case CPL_TYPE_DOUBLE: {
+      cpl::core::array_view data_view = make_array_view<double>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
+    case CPL_TYPE_FLOAT_COMPLEX: {
+      cpl::core::array_view data_view = make_array_view<float _Complex>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
+    case CPL_TYPE_DOUBLE_COMPLEX: {
+      cpl::core::array_view data_view = make_array_view<double _Complex>(arr);
+      return cpl_array_duplicate(data_view.get());
+      break;
+    }
     case CPL_TYPE_STRING: {
       try {
-        std::vector<std::string> v = arr.cast<std::vector<std::string>>();
-        std::vector<char*> result;
-        result.reserve(v.size() + 1);
-        std::transform(v.begin(), v.end(), std::back_inserter(result),
+        // String arrays need to be converted explicitly and
+        // cannot be handled by calling make_array_view. The reason
+        // is the local variable required to store the result
+        // of the conversion std::string to char*.
+        std::vector<std::string> slist = arr.cast<std::vector<std::string>>();
+        std::vector<char*> strings;
+        strings.reserve(slist.size());
+        std::transform(slist.begin(), slist.end(), std::back_inserter(strings),
                        [](std::string& s) -> char* { return (char*)s.data(); });
-        result.push_back(nullptr);
-        char** res = result.data();
-        // Convert to cpl_array and then add it to the table
-        cpl_array* new_arr = cpl_array_wrap_string(res, v.size());
-        return cpl_array_duplicate(new_arr);
+        cpl_array* data_view =
+            cpl_array_wrap_string(strings.data(), strings.size());
+        return cpl_array_duplicate(data_view);
         break;
       }
       catch (const py::cast_error& /* unused */) {
@@ -88,75 +135,6 @@ py_array_to_cpl(py::object obj)
         break;
       }
     }
-    case CPL_TYPE_INT: {
-      py::buffer_info buf = arr.request();
-      int* data_ptr = static_cast<int*>(buf.ptr);
-      // Convert to cpl_array and then add it to the table
-      cpl_array* new_arr = cpl_array_wrap_int(
-          data_ptr, buf.size);  // If its not the same depth the size will allow
-                                // it to throw on insert
-      return new_arr;
-      break;
-    }
-    case CPL_TYPE_FLOAT: {
-      py::buffer_info buf = arr.request();
-      float* data_ptr = static_cast<float*>(buf.ptr);
-      // Convert to cpl_array and then add it to the table
-      cpl_array* new_arr = cpl_array_wrap_float(
-          data_ptr, buf.size);  // If its not the same depth the size will allow
-                                // it to throw on insert
-      return new_arr;
-      break;
-    }
-    case CPL_TYPE_DOUBLE: {
-      py::buffer_info buf = arr.request();
-      double* data_ptr = static_cast<double*>(buf.ptr);
-      // Convert to cpl_array and then add it to the table
-      cpl_array* new_arr = cpl_array_wrap_double(
-          data_ptr, buf.size);  // If its not the same depth the size will allow
-                                // it to throw on insert
-      return new_arr;
-      break;
-    }
-    case CPL_TYPE_FLOAT_COMPLEX: {
-      std::vector<std::complex<float>> as_vec =
-          arr.cast<std::vector<std::complex<float>>>();
-      float _Complex* data =
-          (float _Complex*)cpl_calloc(as_vec.size(), sizeof(float _Complex));
-      std::memcpy(data, &as_vec[0], as_vec.size() * sizeof(float _Complex));
-      cpl_array* new_arr = cpl_array_wrap_float_complex(
-          data, as_vec.size());  // If its not the same depth the size will
-                                 // allow it to throw on insert
-      return new_arr;
-      break;
-    }
-    case CPL_TYPE_DOUBLE_COMPLEX: {
-      std::vector<std::complex<double>> as_vec =
-          arr.cast<std::vector<std::complex<double>>>();
-      double _Complex* data =
-          (double _Complex*)cpl_calloc(as_vec.size(), sizeof(double _Complex));
-      std::memcpy(data, &as_vec[0], as_vec.size() * sizeof(double _Complex));
-      cpl_array* new_arr = cpl_array_wrap_double_complex(
-          data, as_vec.size());  // If its not the same depth the size will
-                                 // allow it to throw on insert
-      return new_arr;
-      break;
-    }
-
-    case CPL_TYPE_LONG:
-    case CPL_TYPE_LONG_LONG: {
-      std::vector<long long> vec_arr = arr.cast<std::vector<long long>>();
-      long long* data =
-          (long long*)cpl_calloc(vec_arr.size(), sizeof(long long));
-
-      std::memcpy(data, &vec_arr[0], vec_arr.size() * sizeof(long long));
-      // Convert to cpl_array and then add it to the table
-      cpl_array* new_arr = cpl_array_wrap_long_long(
-          data, vec_arr.size());  // If its not the same depth the size will
-                                  // allow it to throw on insert
-      return new_arr;
-      break;
-    }
     default: {
       throw cpl::core::InvalidTypeError(
           PYCPL_ERROR_LOCATION, "Python Array is not of a compatible type");
@@ -164,8 +142,9 @@ py_array_to_cpl(py::object obj)
     }
   }
 }
+
 py::array
-cpl_array_to_py(const cpl_array* input)
+py_array_from_cpl(const cpl_array* input)
 /**
  * This module provides functions to create and user PyCPL array.
  * converts CPL array objects to Python (numpy) arrays
@@ -193,22 +172,23 @@ cpl_array_to_py(const cpl_array* input)
   } else {
     switch (cpl::core::Error::throw_errors_with(cpl_array_get_type, input)) {
       case CPL_TYPE_STRING: {
-        size arr_size = cpl_array_get_size(input);
-        char** data = cpl_array_get_data_string(const_cast<cpl_array*>(input));
-        std::vector<std::string> as_vec(arr_size);
-        for (int i = 0; i < arr_size; i++) {
-          if (data != nullptr) {
-            as_vec[i] = std::string(data[i]);
+        size array_size = cpl_array_get_size(input);
+        char** array_data =
+            cpl_array_get_data_string(const_cast<cpl_array*>(input));
+        std::vector<std::string> vec(array_size);
+        for (int i = 0; i < array_size; ++i) {
+          if (array_data != nullptr) {
+            vec[i] = std::string(array_data[i]);
           } else {
-            as_vec[i] = std::string();
+            vec[i] = std::string();
           }
         }
-        py::array res_arr = py::cast(as_vec);
-        return res_arr;
+        py::array array = py::cast(vec);
+        return array;
         break;
       }
       case CPL_TYPE_INT: {
-        int* data = cpl_array_get_data_int(const_cast<cpl_array*>(input));
+        int* data = cpl_array_get_data<int>(const_cast<cpl_array*>(input));
         return py::array(py::buffer_info(
             data,
             sizeof(int),  // itemsize
@@ -220,7 +200,7 @@ cpl_array_to_py(const cpl_array* input)
         break;
       }
       case CPL_TYPE_FLOAT: {
-        float* data = cpl_array_get_data_float(const_cast<cpl_array*>(input));
+        float* data = cpl_array_get_data<float>(const_cast<cpl_array*>(input));
         return py::array(py::buffer_info(
             data,
             sizeof(float),  // itemsize
@@ -232,7 +212,8 @@ cpl_array_to_py(const cpl_array* input)
         break;
       }
       case CPL_TYPE_DOUBLE: {
-        double* data = cpl_array_get_data_double(const_cast<cpl_array*>(input));
+        double* data =
+            cpl_array_get_data<double>(const_cast<cpl_array*>(input));
         return py::array(py::buffer_info(
             data,
             sizeof(double),  // itemsize
@@ -246,10 +227,10 @@ cpl_array_to_py(const cpl_array* input)
       case CPL_TYPE_FLOAT_COMPLEX: {
         size arr_size = cpl_array_get_size(input);
         float _Complex* data =
-            cpl_array_get_data_float_complex(const_cast<cpl_array*>(input));
+            cpl_array_get_data<float _Complex>(const_cast<cpl_array*>(input));
         std::vector<std::complex<float>> as_vec(arr_size);
 
-        for (int i = 0; i < arr_size; i++) {
+        for (int i = 0; i < arr_size; ++i) {
           as_vec[i] = cpl::core::complexf_to_cpp(data[i]);
         }
         return py::array(py::buffer_info(
@@ -265,10 +246,10 @@ cpl_array_to_py(const cpl_array* input)
       case CPL_TYPE_DOUBLE_COMPLEX: {
         size arr_size = cpl_array_get_size(input);
         double _Complex* data =
-            cpl_array_get_data_double_complex(const_cast<cpl_array*>(input));
+            cpl_array_get_data<double _Complex>(const_cast<cpl_array*>(input));
         std::vector<std::complex<double>> as_vec(arr_size);
 
-        for (int i = 0; i < arr_size; i++) {
+        for (int i = 0; i < arr_size; ++i) {
           as_vec[i] = cpl::core::complexd_to_cpp(data[i]);
         }
         return py::array(py::buffer_info(
@@ -285,7 +266,7 @@ cpl_array_to_py(const cpl_array* input)
       case CPL_TYPE_LONG:
       case CPL_TYPE_LONG_LONG: {
         long long* data =
-            cpl_array_get_data_long_long(const_cast<cpl_array*>(input));
+            cpl_array_get_data<long long>(const_cast<cpl_array*>(input));
         return py::array(py::buffer_info(
             data,
             sizeof(long long),  // itemsize
@@ -502,8 +483,7 @@ bind_table(py::module& m)
                 std::ostringstream err_msg;
                 err_msg << "expected numpy array, or implementor of cpython "
                            "buffer protocol, not "
-                        << input[col_name.c_str()]
-                               .get_type()
+                        << py::type::of(input[col_name.c_str()])
                                .attr("__name__")
                                .cast<std::string>();
                 throw cpl::core::InvalidTypeError(PYCPL_ERROR_LOCATION,
@@ -1096,97 +1076,106 @@ bind_table(py::module& m)
                                       first.size());
                 switch (np_derived_type.value()) {
                   case CPL_TYPE_INT: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       py::array_t<int> as_arr = arrays[i];
                       py::buffer_info buf = as_arr.request();
                       int* data_ptr = static_cast<int*>(buf.ptr);
-                      // Convert to cpl_array and then add it to the table
-                      cpl_array* new_arr = cpl_array_wrap_int(
-                          data_ptr,
-                          buf.size);  // If its not the same depth the size will
-                                      // allow it to throw on insert
+
+                      // Convert python buffer to a cpl_array and add it to the
+                      // table. If the array size does not match the column
+                      // depth it will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_int(data_ptr, buf.size);
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
                   }
                   case CPL_TYPE_FLOAT: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       py::array_t<float> as_arr = arrays[i];
                       py::buffer_info buf = as_arr.request();
                       float* data_ptr = static_cast<float*>(buf.ptr);
-                      // Convert to cpl_array and then add it to the table
-                      cpl_array* new_arr = cpl_array_wrap_float(
-                          data_ptr,
-                          buf.size);  // If its not the same depth the size will
-                                      // allow it to throw on insert
+
+                      // Convert python buffer to a cpl_array and add it to the
+                      // table. If the array size does not match the column
+                      // depth it will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_float(data_ptr, buf.size);
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
                   }
                   case CPL_TYPE_DOUBLE: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       py::array_t<double> as_arr = arrays[i];
                       py::buffer_info buf = as_arr.request();
                       double* data_ptr = static_cast<double*>(buf.ptr);
-                      // Convert to cpl_array and then add it to the table
-                      cpl_array* new_arr = cpl_array_wrap_double(
-                          data_ptr,
-                          buf.size);  // If its not the same depth the size will
-                                      // allow it to throw on insert
+
+                      // Convert python buffer to a cpl_array and add it to the
+                      // table. If the array size does not match the column
+                      // depth it will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_double(data_ptr, buf.size);
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
                   }
                   case CPL_TYPE_FLOAT_COMPLEX: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       std::vector<std::complex<float>> as_vec =
                           arrays[i].cast<std::vector<std::complex<float>>>();
                       float _Complex* data = (float _Complex*)cpl_calloc(
                           as_vec.size(), sizeof(float _Complex));
                       std::memcpy(data, &as_vec[0],
                                   as_vec.size() * sizeof(float _Complex));
-                      cpl_array* new_arr = cpl_array_wrap_float_complex(
-                          data,
-                          as_vec.size());  // If its not the same depth the size
-                                           // will allow it to throw on insert
+
+                      // If the array size does not match the column depth it
+                      // will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_float_complex(data, as_vec.size());
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
                   }
                   case CPL_TYPE_DOUBLE_COMPLEX: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       std::vector<std::complex<double>> as_vec =
                           arrays[i].cast<std::vector<std::complex<double>>>();
                       double _Complex* data = (double _Complex*)cpl_calloc(
                           as_vec.size(), sizeof(double _Complex));
                       std::memcpy(data, &as_vec[0],
                                   as_vec.size() * sizeof(double _Complex));
-                      cpl_array* new_arr = cpl_array_wrap_double_complex(
-                          data,
-                          as_vec.size());  // If its not the same depth the size
-                                           // will allow it to throw on insert
+
+                      // If the array size does not match the column depth it
+                      // will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_double_complex(data, as_vec.size());
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
                   }
 
                   case CPL_TYPE_LONG:
                   case CPL_TYPE_LONG_LONG: {
-                    for (int i = 0; i < arrays.size(); i++) {
+                    for (size_t i = 0; i < arrays.size(); ++i) {
                       std::vector<long long> vec_arr =
                           arrays[i].cast<std::vector<long long>>();
                       long long* data = (long long*)cpl_calloc(
                           vec_arr.size(), sizeof(long long));
-
                       std::memcpy(data, &vec_arr[0],
                                   vec_arr.size() * sizeof(long long));
-                      // Convert to cpl_array and then add it to the table
-                      cpl_array* new_arr = cpl_array_wrap_long_long(
-                          data,
-                          vec_arr
-                              .size());  // If its not the same depth the size
-                                         // will allow it to throw on insert
+                      // Convert python buffer to a cpl_array and add it to the
+                      // table. If the array size does not match the column
+                      // depth it will throw on insertion
+                      cpl_array* new_arr =
+                          cpl_array_wrap_long_long(data, vec_arr.size());
                       self.set_array(location, i, new_arr);
+                      cpl_array_unwrap(new_arr);
                     }
                     break;
 
@@ -1355,7 +1344,7 @@ bind_table(py::module& m)
                     std::pair<py::array, bool>(py::array(), result.second));
               } else {
                 return py::cast(std::pair<py::array, bool>(
-                    cpl_array_to_py(result.first), result.second));
+                    py_array_from_cpl(result.first), result.second));
               }
             } else {
               switch (col_type) {
@@ -3679,8 +3668,7 @@ bind_table(py::module& m)
                 size rows = self.get_nrow();
                 std::vector<std::string> as_vec(depth * rows);
                 bool* mask = (bool*)calloc(depth * rows, sizeof(bool));
-                int max_len = 0;
-                for (int i = 0; i < rows; i++) {
+                for (size i = 0; i < rows; ++i) {
                   if (!self.is_valid(column_name, i)) {
                     for (int arr_idx = 0; arr_idx < depth; arr_idx++) {
                       as_vec[i * depth + arr_idx] = std::string();
@@ -3692,14 +3680,10 @@ bind_table(py::module& m)
                     if (result.second == 0) {
                       cpl_array* toget = const_cast<cpl_array*>(result.first);
                       char** from_array = cpl_array_get_data_string(toget);
-                      for (int arr_idx = 0; arr_idx < depth; arr_idx++) {
+                      for (size arr_idx = 0; arr_idx < depth; ++arr_idx) {
                         if (from_array != nullptr) {
                           std::string copyme = std::string(from_array[arr_idx]);
                           as_vec[i * depth + arr_idx] = copyme;
-                          if (copyme.length() > max_len) {
-                            max_len = copyme.length();
-                          }
-
                         } else {
                           as_vec[i * depth + arr_idx] = std::string();
                         }

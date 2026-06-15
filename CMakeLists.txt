@@ -1,5 +1,5 @@
 # This file is part of PyCPL the ESO CPL Python language bindings
-# Copyright (C) 2020-2024 European Southern Observatory
+# Copyright (C) 2020-2026 European Southern Observatory
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,20 +49,24 @@ find_package(HDRL REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 REQUIRED)
 
-if(NOT DEFINED PYCPL_RECIPE_DIR)
+if(NOT DEFINED PYCPL_RECIPE_DIRS)
     if(DEFINED ENV{PYCPL_RECIPE_DIR})
-        set(PYCPL_RECIPE_DIR $ENV{PYCPL_RECIPE_DIR})
+        string(REPLACE ":" ";" PYCPL_RECIPE_DIRS $ENV{PYCPL_RECIPE_DIR})
     else()
-        get_filename_component(PYCPL_RECIPE_DIR "${CPL_CPLCORE_LIBRARY}" DIRECTORY)
-        string(APPEND PYCPL_RECIPE_DIR "/esopipes-plugins")
+        get_filename_component(PYCPL_RECIPE_DIRS "${CPL_CPLCORE_LIBRARY}" DIRECTORY)
+        string(APPEND PYCPL_RECIPE_DIRS "/esopipes-plugins")
     endif()
 endif()
-message(STATUS "Builtin default recipe directory is ${PYCPL_RECIPE_DIR}")
 
-if(NOT EXISTS ${PYCPL_RECIPE_DIR})
-    message(WARNING "Configured default recipe directory '${PYCPL_RECIPE_DIR}' does not yet exist!")
-    message(VERBOSE "The above path determines the default cpl.ui.Recipe.recipe_dir, and is used at Run-time.")
-endif()
+foreach(recipe_dir ${PYCPL_RECIPE_DIRS})
+    if (NOT EXISTS ${recipe_dir})
+        message(WARNING "Configured default recipe directory '${recipe_dir}' does not yet exist!")
+    endif()
+endforeach()
+
+string(JOIN ":" PYCPL_RECIPE_DIR ${PYCPL_RECIPE_DIRS})
+message(STATUS "Builtin default list of recipe search paths is '${PYCPL_RECIPE_DIR}'")
+message(VERBOSE "The above list of paths determines the default cpl.ui.Recipe.recipe_dir, and is used at Run-time.")
 
 pybind11_add_module(cpl
     src/cplcore/array.cpp
@@ -173,7 +177,7 @@ target_compile_definitions(cpl PRIVATE
     PYCPL_VERSION=\"${PYCPL_VERSION}\"
     PYCPL_RECIPE_DIR=\"${PYCPL_RECIPE_DIR}\"
     HDRL_USE_PRIVATE
-    $<$<BOOL:${UNIX}>:_XOPEN_SOURCE=700>
+    $<$<BOOL:${UNIX}>:_XOPEN_SOURCE=800>
     )
 target_compile_options(cpl PRIVATE
     $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-pipe -g3 -ggdb -O0 -rdynamic -fno-inline -fno-builtin -pedantic -Wextra -Wall -W -Wcast-align -Winline -Wmissing-noreturn -Wpointer-arith -Wshadow -Wsign-compare -Wundef -Wunreachable-code -Wwrite-strings -Wmissing-field-initializers -Wmissing-format-attribute>

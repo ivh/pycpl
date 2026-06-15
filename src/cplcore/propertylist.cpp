@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ PropertyList::has(std::string_view name) const
 const Property&
 PropertyList::get(long position) const
 {
-  if (position > m_props.size()) {
+  if (static_cast<decltype(m_props.size())>(position) > m_props.size()) {
     std::ostringstream err_msg;
     err_msg << "Index " << position << " does not is too large "
             << "for a PropertyList of size " << m_props.size();
@@ -94,7 +94,7 @@ PropertyList::get(long position) const
 Property&
 PropertyList::get(long position)
 {
-  if (position > m_props.size()) {
+  if (static_cast<decltype(m_props.size())>(position) > m_props.size()) {
     std::ostringstream err_msg;
     err_msg << "Index " << position << " does not is too large "
             << "for a PropertyList of size " << m_props.size();
@@ -163,7 +163,7 @@ PropertyList::append(const PropertyList& other)
 int
 PropertyList::erase(long position)
 {
-  if (position > m_props.size()) {
+  if (static_cast<decltype(m_props.size())>(position) > m_props.size()) {
     std::ostringstream err_msg;
     err_msg << "Index " << position << " does not is too large "
             << "for a PropertyList of size " << m_props.size();
@@ -267,7 +267,7 @@ PropertyList::prepend(const Property& property)
 void
 PropertyList::insert(long position, const Property& property)
 {
-  if (position > m_props.size()) {
+  if (static_cast<decltype(m_props.size())>(position) > m_props.size()) {
     std::ostringstream err_msg;
     err_msg << "Index " << position << " does not is too large "
             << "for a PropertyList of size " << m_props.size();
