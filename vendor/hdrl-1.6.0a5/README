@@ -1,0 +1,143 @@
+In this file:
+
+* About HDRL
+* Prerequisites
+*   Required dependencies
+*   Optional dependencies
+*   Links
+* Installation
+*   Third party libraries
+*   Installing HDRL
+* Documentation
+* Reporting Bugs
+
+
+About HDRL
+----------
+This is the High-level Data Reduction Library (HDRL).
+
+HDRL provides instrument-independent, high-level scientific functions for
+ESO data reduction pipelines. It aims to concentrate cross-pipeline
+algorithms in a single place, verify and homogenize algorithms, implement
+error propagation, and is extensively tested. Pipeline developers and
+instrument consortia can use HDRL so that bug-fixes and improvements
+benefit all pipelines that use it.
+
+This package includes the HDRL library (built on top of the ESO Common
+Pipeline Library, CPL), unit tests, and documentation. The library
+covers functionalities such as: overscan, bias, dark, flat, bad-pixel
+handling, Strehl, fringing, catalogue operations, efficiency and response
+computation, refraction and airmass, pattern noise, resampling, limiting
+magnitude, and barycentric correction.
+
+HDRL is developed and maintained by the ESO Pipeline System Group (PPS)
+on behalf of the European Southern Observatory (ESO).
+
+
+Prerequisites
+-------------
+
+To build HDRL or use it in your own software you need at least a C99
+compliant compiler (e.g. gcc 4.4 or newer).
+
+In addition, the following third party libraries are required. If the
+system provides them they may be used; otherwise they must be installed
+first. Requirements for each dependency are described in the Installation
+section. The Links section gives references to obtain the source packages.
+
+Required dependencies:
+----------------------
+
+- CPL (ESO Common Pipeline Library) 7.0.0 or newer
+- GSL (GNU Scientific Library)
+- ERFA (Essential Routines for Fundamental Astronomy)
+- libcurl
+
+Optional dependencies:
+----------------------
+
+None. All dependencies listed above are required to build the full
+library and run the tests.
+
+
+Links:
+------
+
+ CPL:     https://www.eso.org/sci/software/cpl/
+ GSL:     https://www.gnu.org/software/gsl/
+ ERFA:    https://github.com/liberfa/erfa
+ libcurl: https://curl.se/libcurl/
+
+
+Installation
+------------
+
+This section gives an overview of the HDRL installation. Install all
+required dependencies before building HDRL. Dependencies are independent
+of each other and may be installed in any order.
+
+If you install libraries into a non-system directory (e.g. under your
+home), set the runtime linker search path accordingly. On Linux use
+LD_LIBRARY_PATH; on macOS use DYLD_LIBRARY_PATH. The path should
+include the directory where the libraries are installed (e.g. <prefix>/lib
+or <prefix>/lib64).
+
+Example (Bourne shell, 64-bit Linux, prefix $HOME/hdrl_deps):
+
+  $ export LD_LIBRARY_PATH=$HOME/hdrl_deps/lib64:$HOME/hdrl_deps/lib:$LD_LIBRARY_PATH
+
+
+Third party libraries:
+----------------------
+
+Install CPL, GSL, ERFA, and libcurl according to the instructions
+shipped with each package. CPL in turn requires CFITSIO, wcslib, and
+optionally FFTW; see the CPL README for details.
+
+
+Installing HDRL
+---------------
+
+1. Unpack the HDRL source archive and change into the top-level
+   directory of the source tree.
+
+2. Run the configure script. To install HDRL as a third-party library
+   (standalone build), you must pass --enable-standalone. If
+   dependencies are installed in non-standard locations, pass their
+   root directory to configure. For example, with CPL under $HOME/cpl
+   and the others under the system paths:
+
+   $ ./configure --prefix=$HOME/hdrl --enable-standalone --with-cpl=$HOME/cpl
+
+   Run './configure --help' for all options and environment variables
+   (e.g. CPLDIR, GSLDIR, ERFADIR, LIBCURLDIR and options --with-cpl,
+   --with-gsl, --with-erfa, --with-libcurl).
+
+3. Build and install:
+
+   $ make
+   $ make check    # optional: run unit tests
+   $ make install
+
+4. If HDRL was installed in a non-standard directory, add its lib
+   directory to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on macOS) so
+   that the runtime linker can find libhdrl.
+
+
+Documentation
+-------------
+
+Detailed documentation is available in the doc/ directory (LaTeX sources)
+and can be built as the "HDRL Pipeline Developer Manual". The library
+API is documented in the header files and can be browsed with Doxygen
+if configured. For an overview of modules and functionalities see the
+developer manual and the doc/Functionalities.tex structure (overscan,
+bias, dark, flat, bad-pixel, Strehl, fringing, catalogue, efficiency,
+response, refraction, airmass, pattern noise, resampling, limiting
+magnitude, barycentric correction).
+
+
+Reporting Bugs
+--------------
+
+Please report bugs to the ESO support portal: https://support.eso.org

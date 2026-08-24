@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -57,10 +57,10 @@ bind_resample(py::module& m)
   resample_class
       .def_static(
           "compute",
-          [](hdrl::core::pycpl_table restable,
-             hdrl::func::ResampleMethod method,
-             hdrl::func::ResampleOutgrid outputgrid,
-             hdrl::core::pycpl_wcs wcs) {
+          [](const hdrl::core::pycpl_table& restable,
+             const hdrl::func::ResampleMethod& method,
+             const hdrl::func::ResampleOutgrid& outputgrid,
+             const hdrl::core::pycpl_wcs& wcs) {
             return hdrl::func::Resample::compute(restable, method, outputgrid,
                                                  wcs);
           },

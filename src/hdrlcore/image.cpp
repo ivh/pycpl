@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -290,10 +290,10 @@ Image::div_image_create(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   hdrl_image* himg = Error::throw_errors_with(hdrl_image_div_image_create,
                                               m_interface, other->ptr());
   // return Image(himg);
@@ -305,10 +305,10 @@ Image::div_image(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   cpl_error_code err =
       Error::throw_errors_with(hdrl_image_div_image, m_interface, other->ptr());
 }
@@ -325,10 +325,10 @@ Image::mul_image_create(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   hdrl_image* himg = Error::throw_errors_with(hdrl_image_mul_image_create,
                                               m_interface, other->ptr());
   return std::make_shared<Image>(Image(himg));
@@ -339,10 +339,10 @@ Image::mul_image(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   cpl_error_code err =
       Error::throw_errors_with(hdrl_image_mul_image, m_interface, other->ptr());
 }
@@ -359,10 +359,10 @@ Image::sub_image_create(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   hdrl_image* himg = Error::throw_errors_with(hdrl_image_sub_image_create,
                                               m_interface, other->ptr());
   return std::make_shared<Image>(Image(himg));
@@ -373,10 +373,10 @@ Image::sub_image(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   cpl_error_code err =
       Error::throw_errors_with(hdrl_image_sub_image, m_interface, other->ptr());
 }
@@ -393,10 +393,10 @@ Image::add_image_create(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   hdrl_image* himg = Error::throw_errors_with(hdrl_image_add_image_create,
                                               m_interface, other->ptr());
   return std::make_shared<Image>(Image(himg));
@@ -407,10 +407,10 @@ Image::add_image(const std::shared_ptr<Image> other)
 {
   // Add null check before calling C function to prevent segfaults
   if (!other) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION, 
-                                    "other image cannot be None");
+    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
+                                     "other image cannot be None");
   }
-  
+
   cpl_error_code err =
       Error::throw_errors_with(hdrl_image_add_image, m_interface, other->ptr());
 }

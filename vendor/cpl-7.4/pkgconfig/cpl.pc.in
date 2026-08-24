@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+Name: cpl
+Description: CPL Library 
+Version: @VERSION@
+URL: https://www.eso.org/sci/software/cpl 
+Requires: cpldrs = @VERSION@, cpldfs = @VERSION@, cplui = @VERSION@, cplcore = @VERSION@

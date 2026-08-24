@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ struct PolynomialIterator
 void
 bind_polynomial(py::module& cplcore)
 {
-  // py::module m = cplcore.def_submodule("polynomial", "Polynomial herlper
+  // py::module_ m = cplcore.def_submodule("polynomial", "Polynomial herlper
   // functions and class");
   py::class_<cpl::core::Polynomial, std::shared_ptr<cpl::core::Polynomial>>
       poly_class(cplcore, "Polynomial");

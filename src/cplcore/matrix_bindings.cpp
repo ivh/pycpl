@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 #include <pybind11/eval.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
 #include "cplcore/matrix.hpp"
@@ -69,7 +70,7 @@ matrix_from_python_matrix(py::object matrix)
     throw py::type_error(
         std::string(
             "expected sized iterable (len >0) of sized iterables, not ") +
-        matrix.get_type().attr("__name__").cast<std::string>());
+        py::type::of(matrix).attr("__name__").cast<std::string>());
   }
   cpl::core::Matrix new_matrix = cpl::core::Matrix(height, width);
 
@@ -162,7 +163,7 @@ bind_matrix(py::module& m)
                    PYCPL_ERROR_LOCATION,
                    std::string(
                        "expected numpy compatible iterable of doubles, not ") +
-                       data.get_type().attr("__name__").cast<std::string>());
+                       py::type::of(data).attr("__name__").cast<std::string>());
              }
              py::buffer_info info = input_arr.request();
 

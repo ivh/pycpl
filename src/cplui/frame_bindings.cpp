@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -368,7 +368,7 @@ bind_frames(py::module& m)
                catch (const py::cast_error& wrong_type) {
                  throw py::type_error(
                      std::string("expected iterable of cpl.ui.Frame, not ") +
-                     it.get_type().attr("__name__").cast<std::string>());
+                     py::type::of(it).attr("__name__").cast<std::string>());
                }
              }
              return self;

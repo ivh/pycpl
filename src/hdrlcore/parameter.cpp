@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,20 +16,46 @@
 
 #include "hdrlcore/parameter.hpp"
 
+#include <hdrl_parameter.h>
 
 namespace hdrl
 {
 namespace core
 {
 
-Parameter::Parameter() { m_interface = nullptr; }
+namespace
+{
+void
+delete_hdrl_parameter(hdrl_parameter* p)
+{
+  if (p != nullptr) {
+    hdrl_parameter_delete(p);
+  }
+}
+}  // namespace
 
-Parameter::Parameter(hdrl_parameter* to_steal) : m_interface(to_steal) {}
+Parameter::Parameter() = default;
+
+Parameter::Parameter(hdrl_parameter* to_steal)
+    : m_interface(to_steal, delete_hdrl_parameter)
+{
+}
+
+Parameter::Parameter(std::shared_ptr<hdrl_parameter> impl)
+    : m_interface(std::move(impl))
+{
+}
 
 hdrl_parameter*
 Parameter::ptr()
 {
-  return m_interface;
+  return m_interface.get();
+}
+
+const hdrl_parameter*
+Parameter::ptr() const
+{
+  return m_interface.get();
 }
 
 }  // namespace core

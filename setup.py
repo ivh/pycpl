@@ -309,7 +309,7 @@ Cflags: -I${{includedir}}
     def _build_cpl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
         """Build CPL library"""
         print("\n>>> Building CPL...")
-        src_dir = vendor_dir / "cpl-7.3.2"
+        src_dir = vendor_dir / "cpl-7.4"
 
         # CPL uses autoconf and needs to find the dependencies
         env = os.environ.copy()
@@ -466,7 +466,7 @@ Cflags: -I${{includedir}}
     def _build_hdrl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
         """Build HDRL library"""
         print("\n>>> Building HDRL...")
-        src_dir = vendor_dir / "hdrl-1.6.0a"
+        src_dir = vendor_dir / "hdrl-1.6.0a5"
 
         env = os.environ.copy()
         env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")

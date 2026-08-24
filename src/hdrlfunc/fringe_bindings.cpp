@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -147,8 +147,9 @@ bind_fringe(py::module& m)
                    If ilist_obj dimensions don't match ilist_fringe, or if
                    stat_mask dimensions don't match fringe images.
            )docstring")
-      .def_property_readonly("master", &hdrl::func::Fringe::get_master,
-                             "Master fringe pattern from the last compute() call.")
+      .def_property_readonly(
+          "master", &hdrl::func::Fringe::get_master,
+          "Master fringe pattern from the last compute() call.")
       .def_property_readonly("contrib_map",
                              &hdrl::func::Fringe::get_contrib_map,
                              "Contribution map from the last compute() call.")
@@ -166,7 +167,8 @@ bind_fringe(py::module& m)
                                 masterfringe);
           },
           py::arg("ilist_fringe"), py::arg("ilist_obj") = py::none(),
-          py::arg("stat_mask") = py::none(), py::arg("masterfringe") = py::none(),
+          py::arg("stat_mask") = py::none(),
+          py::arg("masterfringe") = py::none(),
           R"docstring(
                Apply fringe correction to images using a master fringe pattern.
                

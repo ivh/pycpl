@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <exception>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -138,8 +139,11 @@ class CRecipe : public Recipe
   static void set_recipe_dir(const std::vector<std::string>& dir_list);
 
  private:
+  static void scan_directory(const std::string& dir);
+  static void find_recipes();
   static std::vector<std::string> recipe_dir;
   static std::map<std::string, std::string> library_locations;
+  static std::set<std::string> scanned_dirs;
   void* dl_handle;
   // std::shared_ptr<ParameterList>
   // m_parameters=std::make_shared<ParameterList>();

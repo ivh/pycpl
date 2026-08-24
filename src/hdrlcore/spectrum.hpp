@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,12 +17,13 @@
 #ifndef PYHDRL_CORE_SPECTRUM1D_HPP_
 #define PYHDRL_CORE_SPECTRUM1D_HPP_
 
+#include <array>
 #include <cstring>
+#include <filesystem>
 #include <functional>
-#include <string>
-#include <vector>
 #include <memory>
-#include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include <cpl_array.h>
 #include <cpl_image.h>
@@ -30,15 +31,14 @@
 #include <hdrl_image.h>
 #include <hdrl_imagelist.h>
 #include <hdrl_parameter.h>
-#include <hdrl_spectrumlist.h>
 #include <hdrl_spectrum_defs.h>
 #include <hdrl_spectrum_resample.h>
 #include <hdrl_spectrum_shift.h>
+#include <hdrl_spectrumlist.h>
 #include <hdrl_types.h>
 
-#include "error.hpp"
-#include "imagelist.hpp"
-#include "parameter.hpp"
+#include "hdrlcore/imagelist.hpp"
+#include "hdrlcore/parameter.hpp"
 
 namespace hdrl
 {
@@ -83,9 +83,12 @@ class XCorrelationResult
 
   // Accessors
   double get_shift() const { return m_shift; }
+
   double get_error() const { return m_error; }
+
   double get_quality() const { return m_quality; }
-  hdrl_xcorrelation_result* get_raw() const { return m_result; }
+
+  hdrl_xcorrelation_result* ptr() const { return m_result; }
 
  private:
   double m_shift;
@@ -97,14 +100,19 @@ class XCorrelationResult
 class Spectrum1D
 {
  public:
-  // --- Environment Configuration ---
-  static void init_environment();
-
   // --- Constructors/Destructors ---
   Spectrum1D();
   explicit Spectrum1D(hdrl_spectrum1D* spectrum);
   Spectrum1D(const hdrl_spectrum1D* spectrum);
+  Spectrum1D(const cpl_image* flux, cpl_size half_window,
+             const cpl_array* wavelengths, WaveScale scale);
+  Spectrum1D(const cpl_image* flux, const cpl_image* flux_error,
+             const cpl_array* wavelengths, WaveScale scale);
+  Spectrum1D(std::function<hdrl_value(double)> func,
+             const cpl_array* wavelengths, WaveScale scale);
   ~Spectrum1D();
+
+  typedef typename std::size_t size_type;
 
   // Disable copying
   Spectrum1D(const Spectrum1D&) = delete;
@@ -114,23 +122,8 @@ class Spectrum1D
   Spectrum1D(Spectrum1D&& other) noexcept;
   Spectrum1D& operator=(Spectrum1D&& other) noexcept;
 
-  // --- Static Constructors ---
-  static Spectrum1D create(const double* flux, const double* flux_e,
-                          const double* wavelengths, size_t size, WaveScale scale);
-
-  static Spectrum1D create_error_free(const double* flux, const double* wavelengths,
-                                     size_t size, WaveScale scale);
-
-  static Spectrum1D create_error_DER_SNR(const double* flux, size_t half_window,
-                                        const double* wavelengths, size_t size, WaveScale scale);
-
-  static Spectrum1D create_analytic(std::function<std::pair<double, double>(double)> func,
-                                    const double* wavelengths, size_t size, WaveScale scale);
-
-  static Spectrum1DList create_list(const std::vector<Spectrum1D>& spectra);
-
   // --- Core Methods ---
-  size_t size() const;
+  size_type get_size() const;
   WaveScale get_scale() const;
   const hdrl_image* get_flux() const;
   const cpl_array* get_wavelengths() const;
@@ -161,14 +154,12 @@ class Spectrum1D
   void sub_spectrum(const Spectrum1D& other);
 
   // --- Spectrum Shift Operations ---
-  XCorrelationResult compute_shift_xcorrelation(const Spectrum1D& other, size_t half_win,
-                                              bool normalize = true) const;
+  XCorrelationResult
+  compute_shift_xcorrelation(const Spectrum1D& other, size_type half_win,
+                             bool normalize = true) const;
 
-  static Parameter create_shift_fit_parameter(double wguess, double range_wmin,
-                                             double range_wmax, double fit_wmin,
-                                             double fit_wmax, double fit_half_win);
-
-  double compute_shift_fit(const Parameter& par) const;
+  double compute_shift_fit(double wguess, std::array<double, 2> wrange,
+                           std::array<double, 2> frange, double half_win);
 
   // --- Wavelength Operations ---
   void wavelength_shift(double shift);
@@ -184,40 +175,41 @@ class Spectrum1D
   Spectrum1D wavelength_convert_to_log_create() const;
 
   // --- Spectrum Selection ---
-  Spectrum1D select_window(double lambda_min, double lambda_max, bool is_internal = false) const;
+  Spectrum1D select_window(double lambda_min, double lambda_max,
+                           bool is_internal = false) const;
 
   // --- Spectrum Resample Operations ---
-  static hdrl_spectrum1D_interpolation_method to_c_interp_method(InterpolationMethod method);
-  static Parameter create_interpolation_parameter(InterpolationMethod method);
-  static Parameter create_fit_parameter(int k, int nCoeff);
-  static Parameter create_windowed_fit_parameter(int k, int nCoeff, long window, double factor);
-  static Parameter create_integration_parameter();
-
-  Spectrum1D resample(const Spectrum1D& other, InterpolationMethod method = InterpolationMethod::AKIMA) const;
-  Spectrum1D resample_to_wavelengths(const std::vector<double>& wavelengths,
-                                    InterpolationMethod method = InterpolationMethod::AKIMA) const;
-  Spectrum1D resample_fit(const std::vector<double>& wavelengths, int k, int nCoeff) const;
-  Spectrum1D resample_windowed_fit(const std::vector<double>& wavelengths, int k, int nCoeff,
-                                  long window, double factor) const;
+  Spectrum1D
+  resample(const Spectrum1D& other,
+           InterpolationMethod method = InterpolationMethod::AKIMA) const;
+  Spectrum1D resample_to_wavelengths(
+      const std::vector<double>& wavelengths,
+      InterpolationMethod method = InterpolationMethod::AKIMA) const;
+  Spectrum1D
+  resample_fit(const std::vector<double>& wavelengths, int k, int nCoeff) const;
+  Spectrum1D
+  resample_windowed_fit(const std::vector<double>& wavelengths, int k,
+                        int nCoeff, long window, double factor) const;
   Spectrum1D resample_integrate(const std::vector<double>& wavelengths) const;
 
   // --- I/O ---
-  void save(const std::string& filename) const;
+  void save(const std::filesystem::path& filename) const;
 
   // --- Data Access ---
   std::vector<double> get_flux_vector() const;
   std::vector<double> get_wavelength_vector() const;
   std::vector<double> get_flux_error_vector() const;
+  std::vector<int> get_bad_pixel_map() const;
 
   // --- Utility Methods ---
   bool is_compatible_with(const Spectrum1D& other) const;
-  Spectrum1D duplicate() const;
+  std::shared_ptr<Spectrum1D> duplicate() const;
+  Spectrum1D reject_pixels(const std::vector<int>& bad_samples) const;
+  std::pair<bool, double> is_uniformly_sampled() const;
 
   // --- Raw Access (for bindings) ---
-  hdrl_spectrum1D* get_raw() const { return m_interface; }
-
-  // Get raw pointer
   hdrl_spectrum1D* ptr() { return m_interface; }
+
   const hdrl_spectrum1D* ptr() const { return m_interface; }
 
  private:
@@ -227,20 +219,24 @@ class Spectrum1D
   Spectrum1D handle_single_point_resample(double target_wavelength) const;
 };
 
-#if defined HDRL_USE_EXPERIMENTAL || defined HDRL_USE_PRIVATE
-struct CollapseResult {
-    Spectrum1D result;
-    ImageList aligned_images;
+struct CollapseResult
+{
+  std::shared_ptr<Spectrum1D> result;
+  std::shared_ptr<ImageList> aligned_images;
+  pycpl_image contrib;
 };
-#endif
 
 // Wrapper class for hdrl_spectrum1Dlist
-class Spectrum1DList {
+class Spectrum1DList
+{
  public:
   // Constructors/Destructors
   Spectrum1DList();
   explicit Spectrum1DList(hdrl_spectrum1Dlist* list);
+  Spectrum1DList(std::vector<std::shared_ptr<Spectrum1D>> spectra);
   ~Spectrum1DList();
+
+  typedef typename std::size_t size_type;
 
   // Disable copying
   Spectrum1DList(const Spectrum1DList&) = delete;
@@ -250,31 +246,30 @@ class Spectrum1DList {
   Spectrum1DList(Spectrum1DList&& other) noexcept;
   Spectrum1DList& operator=(Spectrum1DList&& other) noexcept;
 
-  // Static constructors
-  static Spectrum1DList create();
-  static Spectrum1DList create_from_array(const std::vector<Spectrum1D>& spectra);
+  std::shared_ptr<Spectrum1D> operator[](size_type index) const;
 
   // Accessors
-  size_t size() const;
-  Spectrum1D get(size_t index) const;
-  void set(size_t index, const Spectrum1D& spectrum);
-  Spectrum1D unset(size_t index);
+  size_type get_size() const;
+  std::shared_ptr<Spectrum1D> get_at(size_type index) const;
+  void set(std::shared_ptr<Spectrum1D> spectrum, size_type index);
+  void append(std::shared_ptr<Spectrum1D> spectrum);
+  std::shared_ptr<Spectrum1D> pop(size_type index);
 
   // Operations
-  Spectrum1DList duplicate() const;
+  std::shared_ptr<Spectrum1DList> duplicate() const;
 
   // Get raw pointer
   hdrl_spectrum1Dlist* ptr() { return m_list; }
+
   const hdrl_spectrum1Dlist* ptr() const { return m_list; }
 
-#if defined HDRL_USE_EXPERIMENTAL || defined HDRL_USE_PRIVATE
-  CollapseResult collapse(const Parameter& stacking_par,
-                         const std::vector<double>& wavelengths,
-                         const Parameter& resample_par,
-                         bool mark_bpm_in_interpolation) const;
-#endif
+  CollapseResult
+  collapse(const Parameter& stacking_par,
+           const std::vector<double>& wavelengths,
+           const Parameter& resample_par, bool mark_bpm_in_interpolation) const;
 
  private:
+  std::vector<std::shared_ptr<Spectrum1D>> m_spectra;
   hdrl_spectrum1Dlist* m_list;
 };
 
@@ -282,6 +277,3 @@ class Spectrum1DList {
 }  // namespace hdrl
 
 #endif  // PYHDRL_CORE_SPECTRUM1D_HPP_
-
-
-

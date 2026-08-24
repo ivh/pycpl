@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+Name: cplcore
+Description: CPL library (cplcore component library)
+URL: https://www.eso.org/sci/software/cpl 
+Version: @VERSION@
+Requires.private: cext >= 1.2.4, cfitsio >= 3.35, fftw3 >= 3.3.9, fftw3f >= 3.3.9
+Libs: -L${libdir} -lcplcore
+Libs.private: @LIBS@ -lm -pthread
+Cflags: -I${includedir}

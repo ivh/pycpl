@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+Name: cpldrs
+Description: CPL library (cpldrs component library)
+URL: https://www.eso.org/sci/software/cpl 
+Version: @VERSION@
+Requires: cplcore = @VERSION@
+Requires.private: wcslib >= 7.6
+Libs: -L${libdir} -lcpldrs
+Libs.private: @LIBS@ -lm -pthread
+Cflags: -I${includedir}

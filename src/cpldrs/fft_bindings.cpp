@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ using size = cpl::core::size;
 void
 bind_fft(py::module& m)
 {
-  py::module mfft = m.def_submodule("fft", "FFT operations via fftw wrappers");
+  py::module_ mfft = m.def_submodule("fft", "FFT operations via fftw wrappers");
   py::enum_<cpl_fft_mode>(mfft, "Mode", py::arithmetic())
       .value("FORWARD", CPL_FFT_FORWARD)
       .value("BACKWARD", CPL_FFT_BACKWARD)

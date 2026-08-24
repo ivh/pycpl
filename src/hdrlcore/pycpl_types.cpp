@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ pycpl_wcs::operator=(const pycpl_wcs& other)
 {
   cpl_wcs_delete(w);
   w = nullptr;
-  w = Error::throw_errors_with(pyhdrl_wcs_duplicate, other.w);
+  w = Error::throw_errors_with(cpl_wcs_duplicate, other.w);
   return *this;
 }
 
@@ -159,7 +159,7 @@ pycpl_wcs::operator=(const cpl_wcs* other)
 {
   cpl_wcs_delete(w);
   w = nullptr;
-  w = Error::throw_errors_with(pyhdrl_wcs_duplicate, other);
+  w = Error::throw_errors_with(cpl_wcs_duplicate, other);
   return *this;
 }
 
@@ -232,122 +232,6 @@ std::pair<cpl_size, cpl_size>
 cpl_to_coord(cpl_size x, cpl_size y)
 {
   return std::make_pair(x - 1, y - 1);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
-  @brief   Copy WCS.
-  @param   wcs      cpl_wcs structure containing the wcs information
-  @return  wcs      copy of cpl_wcs structure.
- */
-
-// TODO: write a test for this function
-// TODO: add some error throw
-cpl_wcs*
-pyhdrl_wcs_duplicate(const cpl_wcs* wcs)
-{
-  if (wcs != NULL) {
-    int err = 0;
-
-    cpl_propertylist* header = cpl_propertylist_new();
-
-    const cpl_array* crval = cpl_wcs_get_crval(wcs);
-    const cpl_array* crpix = cpl_wcs_get_crpix(wcs);
-    const cpl_array* ctype = cpl_wcs_get_ctype(wcs);
-    const cpl_array* cunit = cpl_wcs_get_cunit(wcs);
-    const cpl_matrix* cd = cpl_wcs_get_cd(wcs);
-    const cpl_array* dims = cpl_wcs_get_image_dims(wcs);
-    int naxis = cpl_wcs_get_image_naxis(wcs);
-
-    for (cpl_size i = 0; i < naxis; i++) {
-      if (i == 0) {
-        cpl_propertylist_update_int(header, "NAXIS", naxis);
-      }
-      char* buf = cpl_sprintf("NAXIS%lld", i + 1);
-      cpl_propertylist_update_int(header, buf,
-                                  cpl_array_get_int(dims, i, &err));
-      cpl_free(buf);
-    }
-    /* for 2D images */
-    if (crval) {
-      cpl_propertylist_update_double(header, "CRVAL1",
-                                     cpl_array_get_double(crval, 0, &err));
-      cpl_propertylist_update_double(header, "CRVAL2",
-                                     cpl_array_get_double(crval, 1, &err));
-    }
-
-    if (crpix) {
-      cpl_propertylist_update_double(header, "CRPIX1",
-                                     cpl_array_get_double(crpix, 0, &err));
-      cpl_propertylist_update_double(header, "CRPIX2",
-                                     cpl_array_get_double(crpix, 1, &err));
-    }
-
-    if (ctype) {
-      cpl_propertylist_update_string(header, "CTYPE1",
-                                     cpl_array_get_string(ctype, 0));
-      cpl_propertylist_update_string(header, "CTYPE2",
-                                     cpl_array_get_string(ctype, 1));
-    }
-
-    if (cunit) {
-      cpl_propertylist_update_string(header, "CUNIT1",
-                                     cpl_array_get_string(cunit, 0));
-      cpl_propertylist_update_string(header, "CUNIT2",
-                                     cpl_array_get_string(cunit, 1));
-    }
-
-    if (cd) {
-      double cd11 = cpl_matrix_get(cd, 0, 0);
-      double cd12 = cpl_matrix_get(cd, 0, 1);
-      double cd21 = cpl_matrix_get(cd, 1, 0);
-      double cd22 = cpl_matrix_get(cd, 1, 1);
-      cpl_propertylist_update_double(header, "CD1_1", cd11);
-      cpl_propertylist_update_double(header, "CD1_2", cd12);
-      cpl_propertylist_update_double(header, "CD2_1", cd21);
-      cpl_propertylist_update_double(header, "CD2_2", cd22);
-    }
-
-    if (cpl_array_get_size(crval) > 2) {
-      if (crval) {
-        cpl_propertylist_update_double(header, "CRVAL3",
-                                       cpl_array_get_double(crval, 2, &err));
-      }
-
-      if (crpix) {
-        cpl_propertylist_update_double(header, "CRPIX3",
-                                       cpl_array_get_double(crpix, 2, &err));
-      }
-
-      if (ctype) {
-        cpl_propertylist_update_string(header, "CTYPE3",
-                                       cpl_array_get_string(ctype, 2));
-      }
-
-      if (cunit) {
-        cpl_propertylist_update_string(header, "CUNIT3",
-                                       cpl_array_get_string(cunit, 2));
-      }
-
-      if (cd) {
-        double cd13 = cpl_matrix_get(cd, 0, 2);
-        double cd23 = cpl_matrix_get(cd, 1, 2);
-        double cd31 = cpl_matrix_get(cd, 2, 0);
-        double cd32 = cpl_matrix_get(cd, 2, 1);
-        double cd33 = cpl_matrix_get(cd, 2, 2);
-        cpl_propertylist_update_double(header, "CD1_3", cd13);
-        cpl_propertylist_update_double(header, "CD2_3", cd23);
-        cpl_propertylist_update_double(header, "CD3_1", cd31);
-        cpl_propertylist_update_double(header, "CD3_2", cd32);
-        cpl_propertylist_update_double(header, "CD3_3", cd33);
-      }
-    }
-
-    cpl_wcs* new_w = cpl_wcs_new_from_propertylist(header);
-
-    return new_w;
-  }
-  return NULL;
 }
 
 /*---------------------------------------------------------------------------*/

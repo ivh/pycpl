@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ using size = cpl::core::size;
 void
 bind_fit(py::module& m)
 {
-  py::module mfit =
+  py::module_ mfit =
       m.def_submodule("fit", "High-level functions for non-linear fitting");
   std::string lvmq_pydoc_str = R"pydoc(
         Fit a function to a set of data.
@@ -284,7 +284,6 @@ bind_fit(py::module& m)
                     {"err_params", "rms", "red_chisq", "covariance", "major",
                      "minor", "angle", "phys_cov", "parameters"})));
 
-
             cpl_array* parameters;
             if (guesses.has_value()) {
               if (guesses.value().size() > 7) {
@@ -293,7 +292,9 @@ bind_fit(py::module& m)
                     "Initial guess array has too many elements (more than 7)");
               }
               parameters = cpl_array_new(7, CPL_TYPE_DOUBLE);
-              for (int i = 0; i < guesses.value().size(); i++) {
+
+              using size_type = decltype(guesses.value().size());
+              for (size_type i = 0; i < guesses.value().size(); ++i) {
                 if (guesses.value()[i].has_value()) {
                   cpl_array_set_double(
                       parameters, i,

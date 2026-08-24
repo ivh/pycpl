@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ bind_mask(py::module& m)
             size data_size = self.get_size();
 
             std::string input_data = static_cast<std::string>(input_bytes);
-            size_t input_length = input_data.length();
+            size input_length = input_data.length();
 
             if ((index < 0) || (input_length + index > data_size)) {
               PyErr_SetString(PyExc_IndexError,

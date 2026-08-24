@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "hdrlfunc/maglim_bindings.hpp"
 
 #include <memory>
+#include <utility>
 
 #include <hdrl_utils.h>
 
@@ -74,11 +75,17 @@ bind_maglim(py::module& m)
             if (mode_param.is_none()) {
               param_ptr = nullptr;
             } else if (py::isinstance<hdrl::func::Collapse>(mode_param)) {
-              // Extract the underlying hdrl_parameter* from the Collapse object
+              // Borrow from Collapse: Collapse owns the hdrl_parameter;
+              // stealing into Parameter would double-free when several Maglim
+              // instances share one Collapse or when Collapse outlives
+              // temporary Maglims.
               hdrl::func::Collapse& collapse =
                   mode_param.cast<hdrl::func::Collapse&>();
+              hdrl_parameter* raw = collapse.ptr();
+              auto borrowed = std::shared_ptr<hdrl_parameter>(
+                  raw, [](hdrl_parameter*) noexcept {});
               param_ptr =
-                  std::make_shared<hdrl::core::Parameter>(collapse.ptr());
+                  std::make_shared<hdrl::core::Parameter>(std::move(borrowed));
             } else if (py::isinstance<hdrl::core::Parameter>(mode_param)) {
               param_ptr =
                   mode_param.cast<std::shared_ptr<hdrl::core::Parameter>>();

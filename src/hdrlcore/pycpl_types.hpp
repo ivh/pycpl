@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -249,8 +249,6 @@ struct pycpl_propertylist
   pycpl_propertylist& operator=(const cpl_propertylist* other);
 };
 
-cpl_wcs* pyhdrl_wcs_duplicate(const cpl_wcs* wcs);
-
 struct pycpl_wcs
 {
   cpl_wcs* w;
@@ -273,17 +271,15 @@ struct pycpl_wcs
 
   pycpl_wcs(const pycpl_wcs& other) : w(nullptr)
   {
-    // there's no cpl_wcs_duplicate - use custom-made
     if (other.w != nullptr) {
-      w = pyhdrl_wcs_duplicate(other.w);
+      w = cpl_wcs_duplicate(other.w);
     }
   }
 
   pycpl_wcs(cpl_wcs* other) : w(nullptr)
   {
-    // there's no cpl_wcs_duplicate - use custom-made
     if (other != nullptr) {
-      w = pyhdrl_wcs_duplicate(other);
+      w = cpl_wcs_duplicate(other);
     }
   }
 

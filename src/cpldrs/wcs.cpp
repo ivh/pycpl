@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -174,6 +174,12 @@ WCS::get_cd() const
   cpl_matrix* duplicate =
       cpl::core::Error::throw_errors_with(cpl_matrix_duplicate, cpl_output);
   return cpl::core::Matrix(duplicate);
+}
+
+const cpl_wcs*
+WCS::ptr() const noexcept
+{
+  return m_interface;
 }
 
 }  // namespace drs

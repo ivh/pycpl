@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -48,9 +48,15 @@ class Resample
 {
  public:
   Resample();
-  hdrl_parameter* ptr();
-  static ResampleResult compute(pycpl_table restable, ResampleMethod method,
-                                ResampleOutgrid outputgrid, pycpl_wcs wcs);
+  virtual ~Resample();
+  Resample(const Resample&) = delete;
+  Resample& operator=(const Resample&) = delete;
+  Resample(Resample&& other) noexcept;
+  Resample& operator=(Resample&& other) noexcept;
+  hdrl_parameter* ptr() const;
+  static ResampleResult
+  compute(const pycpl_table& restable, const ResampleMethod& method,
+          const ResampleOutgrid& outputgrid, const pycpl_wcs& wcs);
   // restable related functions
   static pycpl_table image_to_table(std::shared_ptr<Image> hima, pycpl_wcs wcs);
   static pycpl_table
@@ -58,12 +64,13 @@ class Resample
   static pycpl_table restable_template(int nrows);
 
  protected:
-  hdrl_parameter* m_interface;
+  hdrl_parameter* m_interface = nullptr;
 };
 
 class ResampleMethod : public Resample
 {
  public:
+  ~ResampleMethod() override = default;
   // Nearest
   ResampleMethod();
   // Linear or Quadratic
@@ -81,6 +88,7 @@ class ResampleMethod : public Resample
 class ResampleOutgrid : public Resample
 {
  public:
+  ~ResampleOutgrid() override = default;
   // user defined constructors
   // 2D
   ResampleOutgrid(double delta_ra, double delta_dec, double ra_min,

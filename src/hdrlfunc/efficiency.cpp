@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,53 +14,105 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "efficiency.hpp"
-#include <cpl_error.h>
+#include "hdrlfunc/efficiency.hpp"
 
-namespace hdrl {
-namespace func {
+#include "hdrl_efficiency.h"
+#include "hdrl_types.h"
 
-hdrl::core::Parameter Efficiency::create_parameter(
-    double Ap, double Am, double G, double Tex, double Atel) {
-    hdrl_value ap_val = {Ap, 0.0};
-    hdrl_value am_val = {Am, 0.0};
-    hdrl_value g_val = {G, 0.0};
-    hdrl_value tex_val = {Tex, 0.0};
-    hdrl_value atel_val = {Atel, 0.0};
-    return hdrl::core::Parameter(hdrl::core::Error::throw_errors_with(hdrl_efficiency_parameter_create, ap_val, am_val, g_val, tex_val, atel_val));
+#include "hdrlcore/error.hpp"
+
+namespace hdrl
+{
+namespace func
+{
+
+using hdrl::core::Error;
+
+hdrl_parameter*
+EfficiencyParameter::ptr()
+{
+  return m_interface;
 }
 
-hdrl::core::Parameter Efficiency::create_response_parameter(
-    double Ap, double Am, double G, double Tex) {
-    hdrl_value ap_val = {Ap, 0.0};
-    hdrl_value am_val = {Am, 0.0};
-    hdrl_value g_val = {G, 0.0};
-    hdrl_value tex_val = {Tex, 0.0};
-    return hdrl::core::Parameter(hdrl::core::Error::throw_errors_with(hdrl_response_parameter_create, ap_val, am_val, g_val, tex_val));
+const hdrl_parameter*
+EfficiencyParameter::ptr() const
+{
+  return m_interface;
 }
 
-hdrl::core::Spectrum1D Efficiency::compute(
-    const hdrl::core::Spectrum1D& I_std_arg, const hdrl::core::Spectrum1D& I_std_ref,
-    const hdrl::core::Spectrum1D& E_x, const hdrl::core::Parameter& pars) {
-    // Create a non-const copy of pars to call the non-const ptr() method
-    hdrl::core::Parameter pars_copy = const_cast<hdrl::core::Parameter&>(pars);
-    hdrl_spectrum1D* result = hdrl::core::Error::throw_errors_with(hdrl_efficiency_compute,
-        I_std_arg.get_raw(), I_std_ref.get_raw(), E_x.get_raw(), pars_copy.ptr());
-    return hdrl::core::Spectrum1D(result);
+EfficiencyParameter::EfficiencyParameter(double Ap, double Am, double G,
+                                         double Tex, double Atel)
+{
+  hdrl_value ap_val = {Ap, 0.0};
+  hdrl_value am_val = {Am, 0.0};
+  hdrl_value g_val = {G, 0.0};
+  hdrl_value tex_val = {Tex, 0.0};
+  hdrl_value atel_val = {Atel, 0.0};
+  m_interface =
+      Error::throw_errors_with(hdrl_efficiency_parameter_create, ap_val, am_val,
+                               g_val, tex_val, atel_val);
 }
 
-hdrl::core::Spectrum1D Efficiency::compute_response_core(
-    const hdrl::core::Spectrum1D& I_std_arg, const hdrl::core::Spectrum1D& I_std_ref,
-    const hdrl::core::Spectrum1D& E_x, const hdrl::core::Parameter& pars) {
-    // Create a non-const copy of pars to call the non-const ptr() method
-    hdrl::core::Parameter pars_copy = const_cast<hdrl::core::Parameter&>(pars);
-    hdrl_spectrum1D* result = hdrl::core::Error::throw_errors_with(hdrl_response_core_compute,
-        I_std_arg.get_raw(), I_std_ref.get_raw(), E_x.get_raw(), pars_copy.ptr());
-    return hdrl::core::Spectrum1D(result);
+hdrl_parameter*
+EfficiencyResponseParameter::ptr()
+{
+  return m_interface;
+}
+
+const hdrl_parameter*
+EfficiencyResponseParameter::ptr() const
+{
+  return m_interface;
+}
+
+EfficiencyResponseParameter::EfficiencyResponseParameter(double Ap, double Am,
+                                                         double G, double Tex)
+{
+  hdrl_value ap_val = {Ap, 0.0};
+  hdrl_value am_val = {Am, 0.0};
+  hdrl_value g_val = {G, 0.0};
+  hdrl_value tex_val = {Tex, 0.0};
+  m_interface = Error::throw_errors_with(hdrl_response_parameter_create, ap_val,
+                                         am_val, g_val, tex_val);
+}
+
+EfficiencyParameter
+Efficiency::create_parameter(double Ap, double Am, double G, double Tex,
+                             double Atel)
+{
+  return EfficiencyParameter(Ap, Am, G, Tex, Atel);
+}
+
+EfficiencyResponseParameter
+Efficiency::create_response_parameter(double Ap, double Am, double G,
+                                      double Tex)
+{
+  return EfficiencyResponseParameter(Ap, Am, G, Tex);
+}
+
+hdrl::core::Spectrum1D
+Efficiency::compute(const hdrl::core::Spectrum1D& I_std_arg,
+                    const hdrl::core::Spectrum1D& I_std_ref,
+                    const hdrl::core::Spectrum1D& E_x,
+                    const EfficiencyParameter& pars)
+{
+  hdrl_spectrum1D* result = Error::throw_errors_with(
+      hdrl_efficiency_compute, I_std_arg.ptr(), I_std_ref.ptr(), E_x.ptr(),
+      const_cast<hdrl_parameter*>(pars.ptr()));
+  return hdrl::core::Spectrum1D(result);
+}
+
+hdrl::core::Spectrum1D
+Efficiency::compute_response_core(const hdrl::core::Spectrum1D& I_std_arg,
+                                  const hdrl::core::Spectrum1D& I_std_ref,
+                                  const hdrl::core::Spectrum1D& E_x,
+                                  const EfficiencyResponseParameter& pars)
+{
+  hdrl_spectrum1D* result = Error::throw_errors_with(
+      hdrl_response_core_compute, I_std_arg.ptr(), I_std_ref.ptr(), E_x.ptr(),
+      const_cast<hdrl_parameter*>(pars.ptr()));
+  return hdrl::core::Spectrum1D(result);
 }
 
 }  // namespace func
 }  // namespace hdrl
-
-
-

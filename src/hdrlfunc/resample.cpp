@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -32,14 +32,41 @@ using hdrl::core::IllegalInputError;
 Resample::Resample() {}
 
 hdrl_parameter*
-Resample::ptr()
+Resample::ptr() const
 {
   return m_interface;
 }
 
+Resample::~Resample()
+{
+  if (m_interface != nullptr) {
+    hdrl_parameter_delete(m_interface);
+    m_interface = nullptr;
+  }
+}
+
+Resample::Resample(Resample&& other) noexcept
+{
+  m_interface = other.m_interface;
+  other.m_interface = nullptr;
+}
+
+Resample&
+Resample::operator=(Resample&& other) noexcept
+{
+  if (this != &other) {
+    if (m_interface != nullptr) {
+      hdrl_parameter_delete(m_interface);
+    }
+    m_interface = other.m_interface;
+    other.m_interface = nullptr;
+  }
+  return *this;
+}
+
 ResampleResult
-Resample::compute(pycpl_table restable, ResampleMethod method,
-                  ResampleOutgrid outputgrid, pycpl_wcs wcs)
+Resample::compute(const pycpl_table& restable, const ResampleMethod& method,
+                  const ResampleOutgrid& outputgrid, const pycpl_wcs& wcs)
 {
   hdrl_resample_result* res = Error::throw_errors_with(
       hdrl_resample_compute, restable.t, method.ptr(), outputgrid.ptr(), wcs.w);

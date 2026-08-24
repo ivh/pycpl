@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2025 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef PYHDRL_EFFICIENCY_BINDINGS_HPP_
-#define PYHDRL_EFFICIENCY_BINDINGS_HPP_
+#ifndef PYHDRL_FUNC_EFFICIENCY_BINDINGS_HPP_
+#define PYHDRL_FUNC_EFFICIENCY_BINDINGS_HPP_
 
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
-void bind_efficiency(py::module& m);
+void bind_efficiency(py::module_& m);
 
-#endif  // PYHDRL_EFFICIENCY_BINDINGS_HPP_
-
+#endif  // PYHDRL_FUNC_EFFICIENCY_BINDINGS_HPP_

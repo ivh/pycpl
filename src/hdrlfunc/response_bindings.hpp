@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2025 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 
 namespace py = pybind11;
 
-void bind_response(py::module& m);
+void bind_response(py::module_& m);
 
-#endif  // PYHDRL_EFFICIENCY_BINDINGS_HPP_
-
+#endif  // PYHDRL_RESPONSE_BINDINGS_HPP_

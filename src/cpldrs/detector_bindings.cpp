@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ namespace py = pybind11;
 void
 bind_detector(py::module& m)
 {
-  py::module detector = m.def_submodule(
+  py::module_ detector = m.def_submodule(
       "detector", "High-level functions to compute detector features.");
 
   detector

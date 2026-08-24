@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+Name: cplgasgano
+Description: CPL library (cplgasgano Gasgano java bindings library)
+URL: https://www.eso.org/sci/software/cpl 
+Version: @VERSION@
+Requires: cpldfs = @VERSION@, cplui = @VERSION@, cplcore = @VERSION@
+Libs: -L${libdir} -lcplgasgano
+Libs.private: @LIBS@ -lm -pthread
+Cflags: -I${includedir}

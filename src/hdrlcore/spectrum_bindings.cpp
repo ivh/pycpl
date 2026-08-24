@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,1228 +14,1558 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "spectrum_bindings.hpp"
+#include "hdrlcore/spectrum_bindings.hpp"
+
+#include <cfloat>
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-//#include <csignal>
-//#include <csetjmp>
-#include <stdexcept>
-#include <iostream>
-#include <algorithm>  // For std::transform
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "cpl_array.h"
+#include "cpl_type.h"
+#include "hdrl_spectrum_resample.h"
+#include "pybind11/attr.h"
+#include "pybind11/buffer_info.h"
+#include "pybind11/detail/common.h"
+#include "pybind11/numpy.h"
+#include "pybind11/pybind11.h"
+#include "pybind11/pytypes.h"
 
-#include "spectrum.hpp"
-#include "error.hpp"
+#include "hdrlcore/error.hpp"
+#include "hdrlcore/pycpl_image.hpp"  // IWYU pragma: keep
+#include "hdrlcore/spectrum.hpp"
+#include "hdrlfunc/collapse.hpp"
+#include "path_conversion.hpp"  // IWYU pragma: keep
 
 namespace py = pybind11;
 
-// Global variables for signal handling
-//static sigjmp_buf segfault_buffer;
+using hdrl::core::Spectrum1D;
 
-// Signal handler for segmentation faults
-//static void segfault_handler(int signal) {
-//    std::cerr << "Segmentation fault caught! Attempting recovery..." << std::endl;
-//    siglongjmp(segfault_buffer, 1);
-//}
-
-// Function to initialize environment variables
-//static void init_environment() {
-//    // Set environment variables for memory safety
-//    setenv("OMP_NUM_THREADS", "1", 1);
-//    setenv("GOMP_CPU_AFFINITY", "0", 1);
-//    setenv("MALLOC_CHECK_", "2", 1);
-//    setenv("MALLOC_PERTURB_", "123", 1);
-
-//    // Set up signal handler for segmentation faults
-//    signal(SIGSEGV, segfault_handler);
-//
-//    std::cout << "Environment initialized with memory safety settings" << std::endl;
-//}
-
-// Function to configure GSL error handling
-//static void configure_gsl() {
-//    std::cout << "GSL configuration skipped (not available)" << std::endl;
-//}
-
-// Helper function to validate input arrays
-static void validate_input_arrays(py::buffer_info& flux_buf,
-                                 py::buffer_info& flux_e_buf,
-                                 py::buffer_info& wav_buf) {
-    // Check sizes match and are non-zero
-    if (flux_buf.shape[0] == 0 || flux_e_buf.shape[0] == 0 || wav_buf.shape[0] == 0) {
-        throw py::value_error("Input arrays must be non-empty");
+namespace
+{
+class Spectrum1DResampleMethod
+{
+ public:
+  explicit Spectrum1DResampleMethod(
+      std::shared_ptr<hdrl::core::Parameter> parameter)
+      : parameter_(std::move(parameter))
+  {
+    if (!parameter_ || parameter_->ptr() == nullptr) {
+      throw py::value_error("Spectrum1DResampleMethod cannot be null");
     }
+  }
 
-    if (flux_buf.shape[0] != flux_e_buf.shape[0] || flux_buf.shape[0] != wav_buf.shape[0]) {
-        throw py::value_error("Input arrays must have the same size");
+  hdrl_parameter* ptr() const
+  {
+    return const_cast<hdrl::core::Parameter&>(*parameter_).ptr();
+  }
+
+  static std::shared_ptr<Spectrum1DResampleMethod>
+  Interpolate(hdrl::core::InterpolationMethod method)
+  {
+    hdrl_spectrum1D_interpolation_method c_method =
+        hdrl_spectrum1D_interp_akima;
+    if (method == hdrl::core::InterpolationMethod::LINEAR) {
+      c_method = hdrl_spectrum1D_interp_linear;
+    } else if (method == hdrl::core::InterpolationMethod::CSPLINE) {
+      c_method = hdrl_spectrum1D_interp_cspline;
+    } else if (method == hdrl::core::InterpolationMethod::AKIMA) {
+      c_method = hdrl_spectrum1D_interp_akima;
     }
+    auto parameter = std::make_shared<hdrl::core::Parameter>(
+        hdrl::core::Error::throw_errors_with(
+            hdrl_spectrum1D_resample_interpolate_parameter_create, c_method));
+    return std::make_shared<Spectrum1DResampleMethod>(parameter);
+  }
 
-    // Check for NaN or Inf values in the arrays
-    double* flux_data = static_cast<double*>(flux_buf.ptr);
-    double* flux_e_data = static_cast<double*>(flux_e_buf.ptr);
-    double* wav_data = static_cast<double*>(wav_buf.ptr);
+  static std::shared_ptr<Spectrum1DResampleMethod> Integrate()
+  {
+    auto parameter = std::make_shared<hdrl::core::Parameter>(
+        hdrl::core::Error::throw_errors_with(
+            hdrl_spectrum1D_resample_integrate_parameter_create));
+    return std::make_shared<Spectrum1DResampleMethod>(parameter);
+  }
 
-    size_t size = flux_buf.shape[0];
-    for (size_t i = 0; i < size; ++i) {
-        if (std::isnan(flux_data[i]) || std::isnan(flux_e_data[i]) || std::isnan(wav_data[i]) ||
-            std::isinf(flux_data[i]) || std::isinf(flux_e_data[i]) || std::isinf(wav_data[i])) {
-            throw py::value_error("Invalid value (NaN or Inf) in input data at index " + std::to_string(i));
-        }
-    }
+  static std::shared_ptr<Spectrum1DResampleMethod> Fit(int k, int n_coeff)
+  {
+    auto parameter = std::make_shared<hdrl::core::Parameter>(
+        hdrl::core::Error::throw_errors_with(
+            hdrl_spectrum1D_resample_fit_parameter_create, k, n_coeff));
+    return std::make_shared<Spectrum1DResampleMethod>(parameter);
+  }
 
-    // Check if wavelengths are sorted
-    for (size_t i = 1; i < size; ++i) {
-        if (wav_data[i] <= wav_data[i-1]) {
-            throw py::value_error("Wavelengths must be strictly increasing");
-        }
-    }
-}
+  static std::shared_ptr<Spectrum1DResampleMethod>
+  FitWindowed(int k, int n_coeff, long window, double factor)
+  {
+    auto parameter = std::make_shared<hdrl::core::Parameter>(
+        hdrl::core::Error::throw_errors_with(
+            hdrl_spectrum1D_resample_fit_windowed_parameter_create, k, n_coeff,
+            window, factor));
+    return std::make_shared<Spectrum1DResampleMethod>(parameter);
+  }
 
-// Helper function to validate wavelength array
-static void validate_wavelength_array(py::buffer_info& wav_buf) {
-    if (wav_buf.shape[0] == 0) {
-        throw py::value_error("Wavelength array must be non-empty");
-    }
-
-    double* wav_data = static_cast<double*>(wav_buf.ptr);
-    size_t size = wav_buf.shape[0];
-
-    for (size_t i = 0; i < size; ++i) {
-        if (std::isnan(wav_data[i]) || std::isinf(wav_data[i])) {
-            throw py::value_error("Invalid wavelength value (NaN or Inf) at index " + std::to_string(i));
-        }
-    }
-
-    // Check if wavelengths are sorted
-    for (size_t i = 1; i < size; ++i) {
-        if (wav_data[i] <= wav_data[i-1]) {
-            throw py::value_error("Wavelengths must be strictly increasing");
-        }
-    }
-}
+ private:
+  std::shared_ptr<hdrl::core::Parameter> parameter_;
+};
 
 // Helper function to convert numpy array to vector
-static std::vector<double> numpy_to_vector(py::array_t<double>& array) {
-    py::buffer_info buf = array.request();
-    std::vector<double> vec(buf.size);
-    std::memcpy(vec.data(), buf.ptr, buf.size * sizeof(double));
-    return vec;
+std::vector<double>
+numpy_to_vector(py::array_t<double>& array)
+{
+  py::buffer_info buf = array.request();
+  std::vector<double> vec(buf.size);
+  std::memcpy(vec.data(), buf.ptr, buf.size * sizeof(double));
+  return vec;
 }
 
-// Safe wrapper for HDRL operations that might segfault
-//template<typename Func, typename... Args>
-//auto safe_hdrl_call(Func func, Args... args)
-//    -> decltype(func(std::forward<Args>(args)...))
-//{
-//    volatile int jump_val = sigsetjmp(segfault_buffer, 1);
-//    if (jump_val != 0) {
-//        throw py::value_error("Segmentation fault occurred during HDRL operation");
-//    }
-//
-//    return func(std::forward<Args>(args)...);
-//}
+// Helper functions to validate input arrays
+void
+validate_buffer(py::buffer_info& buffer)
+{
+  if (buffer.ndim != 1) {
+    throw py::value_error("Array number of dimensions must be one");
+  }
+  if (buffer.shape[0] == 0) {
+    throw py::value_error("Array must not be empty");
+  }
 
-// Helper function to create a shared_ptr from a raw pointer with proper ownership
-//template<typename T>
-//static std::shared_ptr<T> make_shared_from_raw(T* ptr) {
-//    if (!ptr) {
-//        throw py::value_error("Null pointer provided");
-//    }
-//    return std::shared_ptr<T>(ptr, [](T* p) { delete p; });
-//}
+  double* buffer_data = static_cast<double*>(buffer.ptr);
+  for (ssize_t i = 0; i < buffer.size; ++i) {
+    if (std::isnan(buffer_data[i]) || std::isinf(buffer_data[i])) {
+      throw py::value_error(
+          "Array contains invalid values (NaN or Inf) at index " +
+          std::to_string(i));
+    }
+  }
+}
 
-void bind_spectrum1d(py::module_& m) {
-    // Bind enums
-    py::enum_<hdrl::core::WaveScale>(m, "WaveScale")
-        .value("LINEAR", hdrl::core::WaveScale::LINEAR)
-        .value("LOG", hdrl::core::WaveScale::LOG)
-        .export_values();
+bool
+is_strictly_monotonic_increasing(cpl_array* array)
+{
+  double* array_data = cpl_array_get_data_double(array);
+  for (cpl_size i = 1; i < cpl_array_get_size(array); ++i) {
+    if (array_data[i] <= array_data[i - 1]) {
+      return false;
+    }
+  }
+  return true;
+}
 
-    py::enum_<hdrl::core::InterpolationMethod>(m, "InterpolationMethod")
-        .value("LINEAR", hdrl::core::InterpolationMethod::LINEAR)
-        .value("CSPLINE", hdrl::core::InterpolationMethod::CSPLINE)
-        .value("AKIMA", hdrl::core::InterpolationMethod::AKIMA)
-        .export_values();
+using array_view = std::unique_ptr<cpl_array, decltype(cpl_array_unwrap)*>;
 
-    // Bind XCorrelationResult with improved representation
-    py::class_<hdrl::core::XCorrelationResult>(m, "XCorrelationResult")
-        .def(py::init<double, double, double>(), py::arg("shift"), py::arg("error"), py::arg("quality"))
-        .def("get_shift", &hdrl::core::XCorrelationResult::get_shift)
-        .def("get_error", &hdrl::core::XCorrelationResult::get_error)
-        .def("get_quality", &hdrl::core::XCorrelationResult::get_quality)
-        .def_property_readonly("shift", &hdrl::core::XCorrelationResult::get_shift)
-        .def_property_readonly("error", &hdrl::core::XCorrelationResult::get_error)
-        .def_property_readonly("quality", &hdrl::core::XCorrelationResult::get_quality)
-        .def("__repr__", [](const hdrl::core::XCorrelationResult& self) -> std::string {
-            return "XCorrelationResult(shift=" + std::to_string(self.get_shift()) +
-                   ", error=" + std::to_string(self.get_error()) +
-                   ", quality=" + std::to_string(self.get_quality()) + ")";
-        });
+array_view
+make_array_view(py::array_t<double>& array)
+{
+  py::buffer_info buffer = array.request();
+  validate_buffer(buffer);
+  double* buffer_data = static_cast<double*>(buffer.ptr);
+  return array_view(cpl_array_wrap_double(buffer_data, buffer.size),
+                    cpl_array_unwrap);
+}
 
-    // Bind Parameter class
-    py::class_<hdrl::core::Parameter>(m, "Parameter")
-        .def(py::init<>())
-        .def("__repr__", [](const hdrl::core::Parameter& self) -> std::string {
-            return "Parameter(ptr=" +
-                   std::to_string(reinterpret_cast<uintptr_t>(
-                       const_cast<hdrl::core::Parameter&>(self).ptr())) +
-                   ")";
-        });
+using image_view = std::unique_ptr<cpl_image, decltype(cpl_image_unwrap)*>;
 
-    // Bind Spectrum1D with improved constructors and methods
-    py::class_<hdrl::core::Spectrum1D, std::shared_ptr<hdrl::core::Spectrum1D>>(m, "Spectrum1D")
-        // Environment configuration methods
-//        .def_static("init_environment", &init_environment,
-//                   "Initialize environment variables for memory safety")
-//        .def_static("configure_gsl", &configure_gsl,
-//                   "Configure GSL to handle errors gracefully")
+image_view
+make_image_view(py::array_t<double>& array)
+{
+  py::buffer_info buffer = array.request();
+  validate_buffer(buffer);
+  double* buffer_data = static_cast<double*>(buffer.ptr);
+  return image_view(cpl_image_wrap_double(buffer.size, 1, buffer_data),
+                    cpl_image_unwrap);
+}
+}  // namespace
 
-        // Constructors with enhanced validation
-        .def(py::init<>())
-        .def(py::init([](py::array_t<double> flux, py::array_t<double> flux_error,
-                         py::array_t<double> wavelengths, std::string scale) {
-                try {
-                    // Extract buffers from NumPy arrays
-                    py::buffer_info flux_buf = flux.request();
-                    py::buffer_info flux_e_buf = flux_error.request();
-                    py::buffer_info wav_buf = wavelengths.request();
+void
+bind_spectrum1d(py::module_& m)
+{
+  // Bind enums
+  py::enum_<hdrl::core::WaveScale>(m, "WaveScale")
+      .value("LINEAR", hdrl::core::WaveScale::LINEAR)
+      .value("LOG", hdrl::core::WaveScale::LOG)
+      .export_values();
 
-                    // Validate input arrays
-                    validate_input_arrays(flux_buf, flux_e_buf, wav_buf);
+  py::enum_<hdrl::core::InterpolationMethod>(m, "InterpolationMethod")
+      .value("LINEAR", hdrl::core::InterpolationMethod::LINEAR)
+      .value("CSPLINE", hdrl::core::InterpolationMethod::CSPLINE)
+      .value("AKIMA", hdrl::core::InterpolationMethod::AKIMA)
+      .export_values();
 
-                    // Convert scale string to enum
-                    hdrl::core::WaveScale wave_scale;
-                    if (scale == "linear") {
-                        wave_scale = hdrl::core::WaveScale::LINEAR;
-                    } else if (scale == "log") {
-                        wave_scale = hdrl::core::WaveScale::LOG;
-                    } else {
-                        throw py::value_error("Invalid scale. Must be 'linear' or 'log'.");
-                    }
+  // Bind XCorrelationResult with improved representation
+  py::class_<hdrl::core::XCorrelationResult>(m, "XCorrelationResult")
+      .def(py::init<double, double, double>(), py::arg("shift"),
+           py::arg("error"), py::arg("quality"))
+      .def_property_readonly("shift",
+                             &hdrl::core::XCorrelationResult::get_shift,
+                             "float: Index where the cross correlation reaches "
+                             "its maximum, with sub-pixel precision")
+      .def_property_readonly(
+          "error", &hdrl::core::XCorrelationResult::get_error,
+          "float: Estimated standard deviation of the correlation")
+      .def_property_readonly("quality",
+                             &hdrl::core::XCorrelationResult::get_quality,
+                             "float: Mean squared error of the best fit")
+      .def("__repr__",
+           [](const hdrl::core::XCorrelationResult& self) -> std::string {
+             return "XCorrelationResult(shift=" +
+                    std::to_string(self.get_shift()) +
+                    ", error=" + std::to_string(self.get_error()) +
+                    ", quality=" + std::to_string(self.get_quality()) + ")";
+           });
 
-                    return std::make_shared<hdrl::core::Spectrum1D>(
-                        hdrl::core::Spectrum1D::create(
-                            static_cast<double*>(flux_buf.ptr),
-                            static_cast<double*>(flux_e_buf.ptr),
-                            static_cast<double*>(wav_buf.ptr),
-                            flux_buf.shape[0],
-                            wave_scale
-                        )
-                    );
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum: ") + e.what());
-                }
-            }),
-            py::arg("flux"), py::arg("flux_error"), py::arg("wavelengths"),
-            py::arg("scale") = "linear")
-
-        .def_static("create",
-            [](py::array_t<double> flux, py::array_t<double> flux_error,
-               py::array_t<double> wavelengths, std::string scale) {
-                try {
-                    // Extract buffers from NumPy arrays
-                    py::buffer_info flux_buf = flux.request();
-                    py::buffer_info flux_e_buf = flux_error.request();
-                    py::buffer_info wav_buf = wavelengths.request();
-
-                    // Validate input arrays
-                    validate_input_arrays(flux_buf, flux_e_buf, wav_buf);
-
-                    // Convert scale string to enum
-                    hdrl::core::WaveScale wave_scale;
-                    if (scale == "linear") {
-                        wave_scale = hdrl::core::WaveScale::LINEAR;
-                    } else if (scale == "log") {
-                        wave_scale = hdrl::core::WaveScale::LOG;
-                    } else {
-                        throw py::value_error("Invalid scale. Must be 'linear' or 'log'.");
-                    }
-
-                    // Create Spectrum1D
-                    return std::make_shared<hdrl::core::Spectrum1D>(
-                        hdrl::core::Spectrum1D::create(
-                            static_cast<double*>(flux_buf.ptr),
-                            static_cast<double*>(flux_e_buf.ptr),
-                            static_cast<double*>(wav_buf.ptr),
-                            flux_buf.shape[0],
-                            wave_scale
-                        )
-                    );
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum: ") + e.what());
-                }
-            },
-            py::arg("flux"), py::arg("flux_error"), py::arg("wavelengths"),
-            py::arg("scale") = "linear")
-
-        .def_static("create_error_free",
-            [](py::array_t<double> flux, py::array_t<double> wavelengths, std::string scale) {
-                try {
-                    py::buffer_info flux_buf = flux.request();
-                    py::buffer_info wav_buf = wavelengths.request();
-
-                    if (flux_buf.shape[0] != wav_buf.shape[0]) {
-                        throw py::value_error("Input arrays must have the same size");
-                    }
-
-                    if (flux_buf.shape[0] == 0) {
-                        throw py::value_error("Input arrays must be non-empty");
-                    }
-
-                    // Validate wavelength array
-                    validate_wavelength_array(wav_buf);
-
-                    hdrl::core::WaveScale wave_scale = (scale == "log") ?
-                        hdrl::core::WaveScale::LOG : hdrl::core::WaveScale::LINEAR;
-
-                    return std::make_shared<hdrl::core::Spectrum1D>(
-                        hdrl::core::Spectrum1D::create_error_free(
-                            static_cast<double*>(flux_buf.ptr),
-                            static_cast<double*>(wav_buf.ptr),
-                            flux_buf.shape[0],
-                            wave_scale
-                        )
-                    );
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create error-free spectrum: ") + e.what());
-                }
-            },
-            py::arg("flux"), py::arg("wavelengths"), py::arg("scale") = "linear")
-
-        .def_static("create_error_DER_SNR",
-            [](py::array_t<double> flux, size_t half_window,
-               py::array_t<double> wavelengths, std::string scale) {
-                try {
-                    py::buffer_info flux_buf = flux.request();
-                    py::buffer_info wav_buf = wavelengths.request();
-
-                    if (flux_buf.shape[0] != wav_buf.shape[0]) {
-                        throw py::value_error("Input arrays must have the same size");
-                    }
-
-                    if (flux_buf.shape[0] == 0) {
-                        throw py::value_error("Input arrays must be non-empty");
-                    }
-
-                    // Validate wavelength array
-                    validate_wavelength_array(wav_buf);
-
-                    hdrl::core::WaveScale wave_scale = (scale == "log") ?
-                        hdrl::core::WaveScale::LOG : hdrl::core::WaveScale::LINEAR;
-
-                    return std::make_shared<hdrl::core::Spectrum1D>(
-                        hdrl::core::Spectrum1D::create_error_DER_SNR(
-                            static_cast<double*>(flux_buf.ptr),
-                            half_window,
-                            static_cast<double*>(wav_buf.ptr),
-                            flux_buf.shape[0],
-                            wave_scale
-                        )
-                    );
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create DER_SNR spectrum: ") + e.what());
-                }
-            },
-            py::arg("flux"), py::arg("half_window"), py::arg("wavelengths"),
-            py::arg("scale") = "linear")
-
-        // Core methods
-        .def("size", &hdrl::core::Spectrum1D::size)
-        .def("get_scale", &hdrl::core::Spectrum1D::get_scale)
-
-        // Data access methods with numpy array return
-        .def("get_flux",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    std::vector<double> data = self.get_flux_vector();
-                    py::array_t<double> array(data.size());
-                    auto buf = array.request();
-                    double* ptr = static_cast<double*>(buf.ptr);
-                    std::memcpy(ptr, data.data(), data.size() * sizeof(double));
-                    return array;
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get flux vector: ") + e.what());
-                }
-            })
-        .def("get_wavelengths",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    std::vector<double> data = self.get_wavelength_vector();
-                    py::array_t<double> array(data.size());
-                    auto buf = array.request();
-                    double* ptr = static_cast<double*>(buf.ptr);
-                    std::memcpy(ptr, data.data(), data.size() * sizeof(double));
-                    return array;
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get wavelength vector: ") + e.what());
-                }
-            })
-        .def("get_flux_error",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    std::vector<double> data = self.get_flux_error_vector();
-                    py::array_t<double> array(data.size());
-                    auto buf = array.request();
-                    double* ptr = static_cast<double*>(buf.ptr);
-                    std::memcpy(ptr, data.data(), data.size() * sizeof(double));
-                    return array;
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get flux error vector: ") + e.what());
-                }
-            })
-
-        // Arithmetic operations with error handling
-        .def("mul_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.mul_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to multiply by scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("mul_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.mul_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create scaled spectrum: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("div_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    if (scalar == 0.0) {
-                        throw py::value_error("Cannot divide by zero");
-                    }
-                    self.div_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to divide by scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("div_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    if (scalar == 0.0) {
-                        throw py::value_error("Cannot divide by zero");
-                    }
-                    return self.div_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create divided spectrum: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("add_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.add_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to add scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("add_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.add_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum with added scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("sub_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.sub_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to subtract scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("sub_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.sub_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum with subtracted scalar: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("pow_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.pow_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to raise to power: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("pow_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.pow_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum raised to power: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("exp_scalar",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.exp_scalar(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to exponentiate: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-        .def("exp_scalar_create",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.exp_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create exponentiated spectrum: ") + e.what());
-                }
-            },
-            py::arg("scalar"))
-
-        // Spectrum-Spectrum operations with error handling
-        .def("div_spectrum_create",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.div_spectrum_create(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to divide spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("mul_spectrum_create",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.mul_spectrum_create(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to multiply spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("add_spectrum_create",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.add_spectrum_create(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to add spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("sub_spectrum_create",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.sub_spectrum_create(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to subtract spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("div_spectrum",
-            [](hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    self.div_spectrum(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to divide spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("mul_spectrum",
-            [](hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    self.mul_spectrum(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to multiply spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("add_spectrum",
-            [](hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    self.add_spectrum(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to add spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-        .def("sub_spectrum",
-            [](hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    self.sub_spectrum(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to subtract spectra: ") + e.what());
-                }
-            },
-            py::arg("other"))
-
-        // Spectrum Shift Operations with error handling
-        .def("compute_shift_xcorrelation",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other,
-               size_t half_win, bool normalize) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.compute_shift_xcorrelation(*other, half_win, normalize);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to compute shift xcorrelation: ") + e.what());
-                }
-            },
-            py::arg("other"), py::arg("half_win"), py::arg("normalize") = true)
-
-        .def_static("create_shift_fit_parameter",
-            &hdrl::core::Spectrum1D::create_shift_fit_parameter,
-            py::arg("wguess"), py::arg("range_wmin"), py::arg("range_wmax"),
-            py::arg("fit_wmin"), py::arg("fit_wmax"), py::arg("fit_half_win"))
-
-        .def("compute_shift_fit",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Parameter>& par) {
-                try {
-                    if (!par) {
-                        throw py::value_error("Parameter is null");
-                    }
-                    return self.compute_shift_fit(*par);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to compute shift fit: ") + e.what());
-                }
-            },
-            py::arg("par"))
-
-        // Wavelength Operations with error handling
-        .def("wavelength_shift",
-            [](hdrl::core::Spectrum1D& self, double shift) {
-                try {
-                    self.wavelength_shift(shift);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to shift wavelengths: ") + e.what());
-                }
-            },
-            py::arg("shift"))
-        .def("wavelength_shift_create",
-            [](const hdrl::core::Spectrum1D& self, double shift) {
-                try {
-                    return self.wavelength_shift_create(shift);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create shifted spectrum: ") + e.what());
-                }
-            },
-            py::arg("shift"))
-        .def("wavelength_mult_scalar_linear",
-            [](hdrl::core::Spectrum1D& self, double scale) {
-                try {
-                    if (scale <= 0.0) {
-                        throw py::value_error("Scale must be positive");
-                    }
-                    self.wavelength_mult_scalar_linear(scale);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to multiply wavelengths: ") + e.what());
-                }
-            },
-            py::arg("scale"))
-        .def("wavelength_mult_scalar_linear_create",
-            [](const hdrl::core::Spectrum1D& self, double scale) {
-                try {
-                    if (scale <= 0.0) {
-                        throw py::value_error("Scale must be positive");
-                    }
-                    return self.wavelength_mult_scalar_linear_create(scale);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create scaled wavelength spectrum: ") + e.what());
-                }
-            },
-            py::arg("scale"))
-        .def("wavelength_convert_to_linear",
-            [](hdrl::core::Spectrum1D& self) {
-                try {
-                    self.wavelength_convert_to_linear();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to convert to linear scale: ") + e.what());
-                }
-            })
-        .def("wavelength_convert_to_linear_create",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    return self.wavelength_convert_to_linear_create();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create linear scale spectrum: ") + e.what());
-                }
-            })
-        .def("wavelength_convert_to_log",
-            [](hdrl::core::Spectrum1D& self) {
-                try {
-                    self.wavelength_convert_to_log();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to convert to log scale: ") + e.what());
-                }
-            })
-        .def("wavelength_convert_to_log_create",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    return self.wavelength_convert_to_log_create();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create log scale spectrum: ") + e.what());
-                }
-            })
-
-        // Spectrum Selection with error handling
-        .def("select_window",
-            [](const hdrl::core::Spectrum1D& self, double lambda_min, double lambda_max, bool is_internal) {
-                try {
-                    if (lambda_min >= lambda_max) {
-                        throw py::value_error("lambda_min must be less than lambda_max");
-                    }
-                    return self.select_window(lambda_min, lambda_max, is_internal);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to select wavelength window: ") + e.what());
-                }
-            },
-            py::arg("lambda_min"), py::arg("lambda_max"), py::arg("is_internal") = false)
-
-        // Spectrum Resample Operations with enhanced safety
-        .def("resample",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other,
-               hdrl::core::InterpolationMethod method) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.resample(*other, method);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    // Try with a simpler interpolation method as fallback
-                    try {
-                        return self.resample(*other, hdrl::core::InterpolationMethod::LINEAR);
-                    } catch (const std::exception& e2) {
-                        throw py::value_error(std::string("Resampling failed with both original and fallback methods: ") + e2.what());
-                    }
-                }
-            },
-            py::arg("other"),
-            py::arg("method") = hdrl::core::InterpolationMethod::AKIMA)
-
-        .def("resample_to_wavelengths",
-            [](const hdrl::core::Spectrum1D& self,
-               py::array_t<double> wavelengths,
-               hdrl::core::InterpolationMethod method) {
-                try {
-                    std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                    return self.resample_to_wavelengths(wav_vec, method);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    // Try with linear interpolation as fallback
-                    try {
-                        std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                        return self.resample_to_wavelengths(wav_vec, hdrl::core::InterpolationMethod::LINEAR);
-                    } catch (const std::exception& e2) {
-                        throw py::value_error(std::string("Resampling to wavelengths failed with both original and fallback methods: ") + e2.what());
-                    }
-                }
-            },
-            py::arg("wavelengths"),
-            py::arg("method") = hdrl::core::InterpolationMethod::AKIMA)
-
-        .def("resample_fit",
-            [](const hdrl::core::Spectrum1D& self,
-               py::array_t<double> wavelengths, int k, int nCoeff) {
-                try {
-                    std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-
-                    if (k <= 0 || nCoeff <= 0) {
-                        throw py::value_error("k and nCoeff must be positive");
-                    }
-
-                    return self.resample_fit(wav_vec, k, nCoeff);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    // Try with linear interpolation as fallback
-                    try {
-                        std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                        return self.resample_to_wavelengths(wav_vec, hdrl::core::InterpolationMethod::LINEAR);
-                    } catch (const std::exception& e2) {
-                        throw py::value_error(std::string("Resampling fit failed with both original and fallback methods: ") + e2.what());
-                    }
-                }
-            },
-            py::arg("wavelengths"), py::arg("k"), py::arg("nCoeff"))
-
-        .def("resample_windowed_fit",
-            [](const hdrl::core::Spectrum1D& self,
-               py::array_t<double> wavelengths, int k, int nCoeff, long window,
-               double factor) {
-                try {
-                    std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-
-                    if (k <= 0 || nCoeff <= 0) {
-                        throw py::value_error("k and nCoeff must be positive");
-                    }
-
-                    if (window <= 0) {
-                        throw py::value_error("window must be positive");
-                    }
-
-                    return self.resample_windowed_fit(wav_vec, k, nCoeff, window, factor);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    // Try with linear interpolation as fallback
-                    try {
-                        std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                        return self.resample_to_wavelengths(wav_vec, hdrl::core::InterpolationMethod::LINEAR);
-                    } catch (const std::exception& e2) {
-                        throw py::value_error(std::string("Resampling windowed fit failed with both original and fallback methods: ") + e2.what());
-                    }
-                }
-            },
-            py::arg("wavelengths"), py::arg("k"), py::arg("nCoeff"),
-            py::arg("window"), py::arg("factor"))
-
-        .def("resample_integrate",
-            [](const hdrl::core::Spectrum1D& self,
-               py::array_t<double> wavelengths) {
-                try {
-                    std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                    return self.resample_integrate(wav_vec);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Resampling integrate failed: ") + e.what());
-                }
-            },
-            py::arg("wavelengths"))
-
-        // I/O with error handling
-        .def("save",
-            [](const hdrl::core::Spectrum1D& self, const std::string& filename) {
-                try {
-                    if (filename.empty()) {
-                        throw py::value_error("Filename cannot be empty");
-                    }
-                    self.save(filename);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to save spectrum: ") + e.what());
-                }
-            },
-            py::arg("filename"))
-
-        // Utility methods with error handling
-        .def("is_compatible_with",
-            [](const hdrl::core::Spectrum1D& self,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
-                try {
-                    if (!other) {
-                        throw py::value_error("Other spectrum is null");
-                    }
-                    return self.is_compatible_with(*other);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to check spectrum compatibility: ") + e.what());
-                }
-            },
-            py::arg("other"))
-
-        .def("duplicate",
-            [](const hdrl::core::Spectrum1D& self) {
-                try {
-                    return self.duplicate();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to duplicate spectrum: ") + e.what());
-                }
-            })
-
-        // Operator overloads with error handling
-        .def(
-            "__mul__",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.mul_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Multiplication failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__imul__",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.mul_scalar(scalar);
-                    return py::cast(&self);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("In-place multiplication failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__truediv__",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    if (scalar == 0.0) {
-                        throw py::value_error("Cannot divide by zero");
-                    }
-                    return self.div_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Division failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__itruediv__",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    if (scalar == 0.0) {
-                        throw py::value_error("Cannot divide by zero");
-                    }
-                    self.div_scalar(scalar);
-                    return py::cast(&self);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("In-place division failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__add__",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.add_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Addition failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__iadd__",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.add_scalar(scalar);
-                    return py::cast(&self);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("In-place addition failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__sub__",
-            [](const hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    return self.sub_scalar_create(scalar);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Subtraction failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-        .def(
-            "__isub__",
-            [](hdrl::core::Spectrum1D& self, double scalar) {
-                try {
-                    self.sub_scalar(scalar);
-                    return py::cast(&self);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("In-place subtraction failed: ") + e.what());
-                }
-            },
-            py::is_operator())
-
-        .def("__repr__", [](const hdrl::core::Spectrum1D& self) -> std::string {
-            try {
-                return "Spectrum1D(size=" + std::to_string(self.size()) + ", scale=" +
-                       (self.get_scale() == hdrl::core::WaveScale::LINEAR ? "linear" : "log") +
-                       ")";
-            } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                return "Spectrum1D(invalid)";
+  py::class_<Spectrum1DResampleMethod,
+             std::shared_ptr<Spectrum1DResampleMethod>>(
+      m, "Spectrum1DResampleMethod")
+      .def_static(
+          "Interpolate",
+          [](hdrl::core::InterpolationMethod method)
+              -> std::shared_ptr<Spectrum1DResampleMethod> {
+            hdrl_spectrum1D_interpolation_method c_method =
+                hdrl_spectrum1D_interp_akima;
+            if (method == hdrl::core::InterpolationMethod::LINEAR) {
+              c_method = hdrl_spectrum1D_interp_linear;
+            } else if (method == hdrl::core::InterpolationMethod::CSPLINE) {
+              c_method = hdrl_spectrum1D_interp_cspline;
+            } else if (method == hdrl::core::InterpolationMethod::AKIMA) {
+              c_method = hdrl_spectrum1D_interp_akima;
             }
-        });
+            auto parameter = std::make_shared<hdrl::core::Parameter>(
+                hdrl::core::Error::throw_errors_with(
+                    hdrl_spectrum1D_resample_interpolate_parameter_create,
+                    c_method));
+            return std::make_shared<Spectrum1DResampleMethod>(parameter);
+          },
+          py::arg("method"),
+          R"docstring(
+          Constructor for the hdrl_parameter in the case of interpolation.
 
-    // Bind Spectrum1DList with proper initialization and error handling
-    py::class_<hdrl::core::Spectrum1DList, std::shared_ptr<hdrl::core::Spectrum1DList>>(m, "Spectrum1DList")
-        .def(py::init([](py::args args) {
-            try {
-                return std::make_shared<hdrl::core::Spectrum1DList>(hdrl::core::Spectrum1DList::create());
-            } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                throw py::value_error(std::string("Failed to create spectrum list: ") + e.what());
+          Parameters
+          ----------
+          method : hdrl.core.InterpolationMethod
+              The interpolation methods.
+          )docstring")
+      .def_static(
+          "Integrate",
+          []() -> std::shared_ptr<Spectrum1DResampleMethod> {
+            auto parameter = std::make_shared<hdrl::core::Parameter>(
+                hdrl::core::Error::throw_errors_with(
+                    hdrl_spectrum1D_resample_integrate_parameter_create));
+            return std::make_shared<Spectrum1DResampleMethod>(parameter);
+          },
+          R"docstring(
+          Constructor for the hdrl_parameter in the case of integration.
+          )docstring")
+      .def_static(
+          "Fit",
+          [](int k, int n_coeff) -> std::shared_ptr<Spectrum1DResampleMethod> {
+            auto parameter = std::make_shared<hdrl::core::Parameter>(
+                hdrl::core::Error::throw_errors_with(
+                    hdrl_spectrum1D_resample_fit_parameter_create, k, n_coeff));
+            return std::make_shared<Spectrum1DResampleMethod>(parameter);
+          },
+          py::arg("k"), py::arg("n_coeff"),
+          R"docstring(
+          Constructor for the hdrl_parameter in the case of interpolation.
+
+          Parameters
+          ----------
+          k : int
+              The order of the B-spline.
+          n_coeff : int
+              The number of coefficients used for the fit.
+          )docstring")
+      .def_static(
+          "FitWindowed",
+          [](int k, int n_coeff, long window,
+             double factor) -> std::shared_ptr<Spectrum1DResampleMethod> {
+            auto parameter = std::make_shared<hdrl::core::Parameter>(
+                hdrl::core::Error::throw_errors_with(
+                    hdrl_spectrum1D_resample_fit_windowed_parameter_create, k,
+                    n_coeff, window, factor));
+            return std::make_shared<Spectrum1DResampleMethod>(parameter);
+          },
+          py::arg("k"), py::arg("n_coeff"), py::arg("window"),
+          py::arg("factor"),
+          R"docstring(
+          Constructor for the hdrl_parameter in the case of interpolation.
+
+          Parameters
+          ----------
+          k : int
+              The order of the B-spline.
+          n_coeff : int
+              The number of coefficients used for the fit.
+          window : int
+              The number of destination wavelengths whose flux values are
+              computed using the same model.
+          factor : double
+              The given window2 = window * factor. window2 is the number of
+              source wavelengths used to compute the fit model.
+          )docstring")
+      .def("__repr__", [](const Spectrum1DResampleMethod& self) {
+        return "Spectrum1DResampleMethod(ptr=" +
+               std::to_string(reinterpret_cast<uintptr_t>(self.ptr())) + ")";
+      });
+
+  // Bind Spectrum1D with improved constructors and methods
+  py::class_<hdrl::core::Spectrum1D, std::shared_ptr<hdrl::core::Spectrum1D>>
+      spectrum1d_class(m, "Spectrum1D", py::buffer_protocol());
+
+  spectrum1d_class.doc() = R"docstring(
+      A hdrl.core.Spectrum1D is an HDRL spectrum1D containing the wavelengths, the fluxes at
+      each wavelength together with their errors, and a wavelength scale.
+  )docstring";
+
+  spectrum1d_class
+      .def(py::init([](py::array_t<double> flux, py::int_ half_window,
+                       py::array_t<double> wavelengths, std::string scale) {
+             image_view flux_view = make_image_view(flux);
+             array_view wavelength_view = make_array_view(wavelengths);
+             if (!is_strictly_monotonic_increasing(wavelength_view.get())) {
+               throw py::value_error(
+                   "Wavelength data must be sorted in ascending order");
+             }
+             // Convert scale string to enum
+             hdrl::core::WaveScale wavelength_scale;
+             if (scale == "linear") {
+               wavelength_scale = hdrl::core::WaveScale::LINEAR;
+             } else if (scale == "log") {
+               wavelength_scale = hdrl::core::WaveScale::LOG;
+             } else {
+               throw py::value_error(
+                   "Invalid wavelength scale. Must be 'linear' or 'log'.");
+             }
+             return std::make_shared<Spectrum1D>(
+                 Spectrum1D(flux_view.get(), half_window, wavelength_view.get(),
+                            wavelength_scale));
+           }),
+           py::arg("flux"), py::arg("half_window").noconvert(),
+           py::arg("wavelengths"), py::arg("scale") = "linear", py::prepend(),
+           R"docstring(
+           Constructor for the hdrl.core.Spectrum1D class when no error information is available, in this case we use DER_SNR to esimate the error.
+
+           Parameters
+           ----------
+           flux : array of float
+               The flux.
+           half_window : int
+               The half window the DER_SNR is calculated on.
+           wavelengths : array of float
+               The frequencies.
+           scale : string
+               The scale of the spectrum (logarithmic `log` or linear `linear`).
+
+           Returns
+           -------
+           hdrl.core.Spectrum1D
+               A newly alocated spectrum.
+
+           See Also
+           --------
+           The documentation of the function estimate_noise_DER_SNR().
+           )docstring")
+      .def(py::init([](py::function func, py::array_t<double> wavelengths,
+                       std::string scale) {
+             array_view wavelength_view = make_array_view(wavelengths);
+             if (!is_strictly_monotonic_increasing(wavelength_view.get())) {
+               throw py::value_error(
+                   "Wavelength data must be sorted in ascending order");
+             }
+             // Convert scale string to enum
+             hdrl::core::WaveScale wavelength_scale;
+             if (scale == "linear") {
+               wavelength_scale = hdrl::core::WaveScale::LINEAR;
+             } else if (scale == "log") {
+               wavelength_scale = hdrl::core::WaveScale::LOG;
+             } else {
+               throw py::value_error(
+                   "Invalid wavelength scale. Must be 'linear' or 'log'.");
+             }
+
+             auto wrapped = [func](double lambda) -> hdrl_value {
+               py::object out = func(lambda);
+               py::tuple result = out.cast<py::tuple>();
+               if (result.size() != 2) {
+                 throw py::value_error(
+                     "Analytic function must return a "
+                     "tuple(value, error)");
+               }
+               return {result[0].cast<double>(), result[1].cast<double>()};
+             };
+
+             return std::make_shared<Spectrum1D>(
+                 Spectrum1D(wrapped, wavelength_view.get(), wavelength_scale));
+           }),
+           py::arg("func").noconvert(), py::arg("wavelengths"),
+           py::arg("scale") = "linear", py::prepend(),
+           R"docstring(
+           Constructor for the hdrl.core.Spectrum1D class in the case of a spectrum defined by an analytical function.
+
+           Parameters
+           ----------
+           func : function
+               The analytical function defining the spectrum.
+           wavelengths : array of float
+               The frequencies.
+           scale : string
+               The scale of the spectrum (logarithmic `log` or linear `linear`).
+
+           Returns
+           -------
+           hdrl.core.Spectrum1D
+               A newly alocated spectrum.
+           )docstring")
+      .def(py::init([](py::array_t<double> flux, py::object flux_error,
+                       py::array_t<double> wavelengths, std::string scale) {
+             image_view flux_view = make_image_view(flux);
+             array_view wavelength_view = make_array_view(wavelengths);
+             if (!is_strictly_monotonic_increasing(wavelength_view.get())) {
+               throw py::value_error(
+                   "Wavelength data must be sorted in ascending order");
+             }
+             // Convert scale string to enum
+             hdrl::core::WaveScale wavelength_scale;
+             if (scale == "linear") {
+               wavelength_scale = hdrl::core::WaveScale::LINEAR;
+             } else if (scale == "log") {
+               wavelength_scale = hdrl::core::WaveScale::LOG;
+             } else {
+               throw py::value_error(
+                   "Invalid wavelength scale. Must be 'linear' or 'log'.");
+             }
+             if (!flux_error.is_none()) {
+               py::array_t<double> errors;
+               try {
+                 errors = flux_error.cast<py::array_t<double>>();
+               }
+               catch (const py::cast_error& /*unused */) {
+                 throw py::type_error(
+                     std::string("expected numpy compatible array, not ") +
+                     py::type::of(flux_error)
+                         .attr("__name__")
+                         .cast<std::string>());
+               }
+               image_view flux_error_view = make_image_view(errors);
+               return std::make_shared<Spectrum1D>(
+                   Spectrum1D(flux_view.get(), flux_error_view.get(),
+                              wavelength_view.get(), wavelength_scale));
+             } else {
+               return std::make_shared<Spectrum1D>(
+                   Spectrum1D(flux_view.get(), nullptr, wavelength_view.get(),
+                              wavelength_scale));
+             }
+           }),
+           py::arg("flux"), py::arg("flux_error"), py::arg("wavelengths"),
+           py::arg("scale") = "linear",
+           R"docstring(
+           Constructor for the hdrl.core.Spectrum1D class when error information is available.
+
+           Parameters
+           ----------
+           flux : array of float
+               The flux.
+           flux_error : object
+               The error for the flux.
+           wavelengths : array of float
+               The frequencies.
+           scale : string
+               The scale of the spectrum (logarithmic `log` or linear `linear`).
+
+           Returns
+           -------
+           hdrl.core.Spectrum1D
+               A newly alocated spectrum.
+           )docstring")
+      .def_property_readonly(
+          "size", &hdrl::core::Spectrum1D::get_size,
+          "int: Number of samples the 1D spectrum is made of")
+      .def_property_readonly("scale", &hdrl::core::Spectrum1D::get_scale,
+                             "string: Scale")
+      // Data access methods with numpy array return
+      .def_property_readonly(
+          "wavelengths",
+          [](const hdrl::core::Spectrum1D& self) {
+            std::vector<double> data = self.get_wavelength_vector();
+            py::array_t<double> array(data.size());
+            auto buf = array.request();
+            double* ptr = static_cast<double*>(buf.ptr);
+            std::memcpy(ptr, data.data(), data.size() * sizeof(double));
+            return array;
+          },
+          "array of float: Wavelengths the spectrum is defined on")
+      .def_property_readonly(
+          "flux",
+          [](const hdrl::core::Spectrum1D& self) {
+            std::vector<double> data = self.get_flux_vector();
+            py::array_t<double> array(data.size());
+            auto buf = array.request();
+            double* ptr = static_cast<double*>(buf.ptr);
+            std::memcpy(ptr, data.data(), data.size() * sizeof(double));
+            return array;
+          },
+          "array of float: Flux")
+      .def_property_readonly(
+          "flux_error",
+          [](const hdrl::core::Spectrum1D& self) {
+            std::vector<double> data = self.get_flux_error_vector();
+            py::array_t<double> array(data.size());
+            auto buf = array.request();
+            double* ptr = static_cast<double*>(buf.ptr);
+            std::memcpy(ptr, data.data(), data.size() * sizeof(double));
+            return array;
+          },
+          "array of float: Error of flux")
+      .def_property_readonly(
+          "bad_pixel_map",
+          [](const hdrl::core::Spectrum1D& self) {
+            std::vector<int> data = self.get_bad_pixel_map();
+            py::array_t<int> array(data.size());
+            auto buf = array.request();
+            int* ptr = static_cast<int*>(buf.ptr);
+            std::memcpy(ptr, data.data(), data.size() * sizeof(int));
+            return array;
+          },
+          "array of float: Bad pixel map")
+      .def("__deepcopy__",
+           [](hdrl::core::Spectrum1D& self, py::dict /* unused */)
+               -> std::shared_ptr<hdrl::core::Spectrum1D> {
+             return self.duplicate();
+           })
+      // Arithmetic operations
+      .def(
+          "mul_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.mul_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise multiplication of a spectrum by a scalar.
+          Spectrum is modified.
+
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "div_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            if (std::fabs(scalar) < DBL_EPSILON) {
+              throw py::value_error("Division by zero");
             }
-        }), "Create an empty spectrum list")
+            self.div_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise division of a spectrum by a scalar.
+          Spectrum is modified.
 
-        .def_static("create", []() {
-            try {
-                return std::make_shared<hdrl::core::Spectrum1DList>(hdrl::core::Spectrum1DList::create());
-            } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                throw py::value_error(std::string("Failed to create spectrum list: ") + e.what());
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "add_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.add_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise addition of a spectrum by a scalar.
+          Spectrum is modified.
+
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "sub_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.sub_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise subtraction of a spectrum by a scalar.
+          Spectrum is modified.
+
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "pow_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.pow_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise power of of the flux to the scalar.
+          Spectrum is modified.
+
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "exp_scalar",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.exp_scalar(scalar);
+          },
+          py::arg("scalar"),
+          R"docstring(
+          Computes the elementwise power of the scalar to the flux.
+          Spectrum is modified.
+
+          Parameters
+          ----------
+          scalar : float
+              The scalar factor.
+          )docstring")
+  // FIXME: Leave out the arithmetic operations with scalars that create a
+  //        new Spectrum1D instance. This kind of operations is not (yet)
+  //        implemented in other classes like Image and ImageList. To
+  //        keep the overall API design consistent they are not made
+  //        available for now.
+#if 0
+      .def(
+          "mul_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.mul_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+      .def(
+          "div_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            if (std::fabs(scalar) < DBL_EPSILON) {
+              throw py::value_error("Division by zero");
             }
-        }, "Create a new spectrum list")
-
-        .def_static("create_from_array",
-            [](py::list spectra_list) {
-                try {
-                    auto list = std::make_shared<hdrl::core::Spectrum1DList>(hdrl::core::Spectrum1DList::create());
-
-                    for (size_t i = 0; i < py::len(spectra_list); i++) {
-                        auto spec = spectra_list[i].cast<std::shared_ptr<hdrl::core::Spectrum1D>>();
-                        if (!spec) {
-                            throw py::value_error("Null spectrum in list at index " + std::to_string(i));
-                        }
-                        list->set(i, *spec);
-                    }
-
-                    return list;
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to create spectrum list from array: ") + e.what());
-                }
-            },
-            py::arg("spectra"),
-            "Create a spectrum list from an array of spectra")
-
-        .def("size",
-            [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list) {
-                try {
-                    return list->size();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get spectrum list size: ") + e.what());
-                }
-            },
-            "Get the number of spectra in the list")
-
-        .def("get",
-            [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list, size_t index) {
-                try {
-                    if (index >= list->size()) {
-                        throw py::value_error("Index out of range");
-                    }
-                    return std::make_shared<hdrl::core::Spectrum1D>(list->get(index));
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get spectrum from list: ") + e.what());
-                }
-            },
-            py::arg("index"),
-            "Get a spectrum from the list")
-
-        .def("set",
-            [](std::shared_ptr<hdrl::core::Spectrum1DList>& list, size_t index,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& spectrum) {
-                try {
-                    if (!spectrum) {
-                        throw py::value_error("Null spectrum provided");
-                    }
-                    if (index >= list->size()) {
-                        throw py::value_error("Index out of range");
-                    }
-                    list->set(index, *spectrum);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to set spectrum in list: ") + e.what());
-                }
-            },
-            py::arg("index"), py::arg("spectrum"),
-            "Set a spectrum in the list")
-
-        .def("unset",
-            [](std::shared_ptr<hdrl::core::Spectrum1DList>& list, size_t index) {
-                try {
-                    if (index >= list->size()) {
-                        throw py::value_error("Index out of range");
-                    }
-                    return std::make_shared<hdrl::core::Spectrum1D>(list->unset(index));
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to unset spectrum from list: ") + e.what());
-                }
-            },
-            py::arg("index"),
-            "Remove and return a spectrum from the list")
-
-        .def("duplicate",
-            [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list) {
-                try {
-                    return std::make_shared<hdrl::core::Spectrum1DList>(list->duplicate());
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to duplicate spectrum list: ") + e.what());
-                }
-            },
-            "Create a duplicate of the spectrum list")
-
-        .def("__len__",
-            [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list) {
-                try {
-                    return list->size();
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get spectrum list length: ") + e.what());
-                }
-            })
-        .def("__getitem__",
-            [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list, size_t index) {
-                try {
-                    if (index >= list->size()) {
-                        throw py::value_error("Index out of range");
-                    }
-                    return std::make_shared<hdrl::core::Spectrum1D>(list->get(index));
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to get item from spectrum list: ") + e.what());
-                }
-            })
-        .def("__setitem__",
-            [](std::shared_ptr<hdrl::core::Spectrum1DList>& list, size_t index,
-               const std::shared_ptr<hdrl::core::Spectrum1D>& spectrum) {
-                try {
-                    if (!spectrum) {
-                        throw py::value_error("Null spectrum provided");
-                    }
-                    if (index >= list->size()) {
-                        throw py::value_error("Index out of range");
-                    }
-                    list->set(index, *spectrum);
-                } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                    throw py::value_error(std::string("Failed to set item in spectrum list: ") + e.what());
-                }
-            });
-
-    #if defined HDRL_USE_EXPERIMENTAL || defined HDRL_USE_PRIVATE
-    // Bind CollapseResult struct with proper ImageList handling
-    py::class_<hdrl::core::CollapseResult>(m, "CollapseResult")
-        .def_readonly("result", &hdrl::core::CollapseResult::result)
-        .def_readonly("aligned_images", &hdrl::core::CollapseResult::aligned_images)
-        .def("__repr__", [](const hdrl::core::CollapseResult& self) -> std::string {
-            try {
-                std::string result_size = std::to_string(self.result.size());
-                return "CollapseResult(result_size=" + result_size + ", aligned_images=ImageList)";
-            } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                return "CollapseResult(invalid)";
+            return self.div_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+      .def(
+          "add_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.add_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+      .def(
+          "sub_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.sub_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+      .def(
+          "pow_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.pow_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+      .def(
+          "exp_scalar_create",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.exp_scalar_create(scalar);
+          },
+          py::arg("scalar"))
+#endif
+      // Spectrum-Spectrum operations
+      .def(
+          "div_spectrum_create",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
             }
-        });
+            return self.div_spectrum_create(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Divide one spectrum by another spectrum.
 
-    // Add collapse method to Spectrum1DList with error handling
-    m.def("spectrum1dlist_collapse",
-        [](const std::shared_ptr<hdrl::core::Spectrum1DList>& list,
-           const std::shared_ptr<hdrl::core::Parameter>& stacking_par,
-           py::array_t<double> wavelengths,
-           const std::shared_ptr<hdrl::core::Parameter>& resample_par,
-           bool mark_bpm_in_interpolation) {
-            try {
-                if (!list) {
-                    throw py::value_error("Spectrum list is null");
-                }
-                if (!stacking_par) {
-                    throw py::value_error("Stacking parameter is null");
-                }
-                if (!resample_par) {
-                    throw py::value_error("Resample parameter is null");
-                }
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The denumerator.
 
-                std::vector<double> wav_vec = numpy_to_vector(wavelengths);
-                return list->collapse(*stacking_par, wav_vec, *resample_par, mark_bpm_in_interpolation);
-            } catch (const hdrl::core::Error&) { throw; }
-                catch (const std::exception& e) {
-                throw py::value_error(std::string("Failed to collapse spectrum list: ") + e.what());
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def(
+          "mul_spectrum_create",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
             }
-        },
-        py::arg("list"), py::arg("stacking_par"), py::arg("wavelengths"),
-        py::arg("resample_par"), py::arg("mark_bpm_in_interpolation") = false);
-    #endif
+            return self.mul_spectrum_create(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Multiply one spectrum by another spectrum.
 
-    // Add module-level environment initialization function
-//    m.def("init_environment", &init_environment,
-//         "Initialize environment variables for memory safety");
-//    m.def("configure_gsl", &configure_gsl,
-//         "Configure GSL to handle errors gracefully");
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def(
+          "add_spectrum_create",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            return self.add_spectrum_create(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Sum two spectra.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def(
+          "sub_spectrum_create",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            return self.sub_spectrum_create(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Subtract two spectra.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def(
+          "div_spectrum",
+          [](hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            self.div_spectrum(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Divide one spectrum by another spectrum.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The denumerator.
+          )docstring")
+      .def(
+          "mul_spectrum",
+          [](hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            self.mul_spectrum(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Multiply one spectrum by another spectrum.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+          )docstring")
+      .def(
+          "add_spectrum",
+          [](hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            self.add_spectrum(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Sum two spectra.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+          )docstring")
+      .def(
+          "sub_spectrum",
+          [](hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            self.sub_spectrum(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Subtract two spectra.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other second factor.
+          )docstring")
+      // Spectrum Shift Operations
+      .def(
+          "compute_shift_xcorrelation",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other,
+             size_t half_win, bool normalize) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            return self.compute_shift_xcorrelation(*other, half_win, normalize);
+          },
+          py::arg("other"), py::arg("half_win"), py::arg("normalize") = true,
+          R"docstring(
+          Calculate cross-correlation.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The other spectrum.
+          half_win : int
+              The half search window where the correlation is calculated.
+          normalize : boolean
+              Flag, `true` if normalize correlation in mean and rms.
+
+          Returns
+          -------
+          XCorrelationResult
+              Object with cross-correlation results.
+          )docstring")
+      .def("compute_shift_fit", &hdrl::core::Spectrum1D::compute_shift_fit,
+           py::arg("wguess"), py::arg("wrange"), py::arg("fitrange"),
+           py::arg("halfsize"),
+           R"docstring(
+           Compute the spectral shift of the spectrum with respect to
+           an expected position of a spectral line.
+
+           Parameters
+           ----------
+           wguess : float
+               Expected wavelength of the spectral line.
+           wrange : tuple(float, float)
+               Tuple of the minimum and maximum wavelength defining the
+               wavelength range of the spectrum to use.
+           fitrange : tuple(float, float)
+               Tuple of the minimum and maximum wavelength defining the
+               wavelength range that is ignored when fitting the ratio of
+               the spectrum and the fitted model with a polynomial.
+           halfsize : float
+               Window half size defining the wavelength limits for
+               the polynomial fit.
+
+           Returns
+           -------
+           float
+               The relative shift of the spectrum with respect to the reference
+               wavelength.
+           )docstring")
+      .def(
+          "wavelength_shift",
+          [](hdrl::core::Spectrum1D& self, double shift) {
+            self.wavelength_shift(shift);
+          },
+          py::arg("shift"),
+          R"docstring(
+          Computes the elementwise shift of the wavelength by the shift
+          parameter.
+
+          Parameters
+          ----------
+          shift : float
+              The shift scalar factor.
+          )docstring")
+      .def(
+          "wavelength_shift_create",
+          [](const hdrl::core::Spectrum1D& self, double shift) {
+            return self.wavelength_shift_create(shift);
+          },
+          py::arg("shift"),
+          R"docstring(
+          Computes the elementwise shift of the wavelength by the shift
+          parameter.
+
+          Parameters
+          ----------
+          shift : float
+              The shift scalar factor.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def(
+          "wavelength_mult_scalar_linear",
+          [](hdrl::core::Spectrum1D& self, double scale) {
+            if (scale <= 0.0) {
+              throw py::value_error("Scale must be positive");
+            }
+            self.wavelength_mult_scalar_linear(scale);
+          },
+          py::arg("scale"),
+          R"docstring(
+          Computes the elementwise multiplication of the scalar for the
+          wavelength.
+
+          Parameters
+          ----------
+          scale : float
+              The scalar factor.
+          )docstring")
+      .def(
+          "wavelength_mult_scalar_linear_create",
+          [](const hdrl::core::Spectrum1D& self, double scale) {
+            if (scale <= 0.0) {
+              throw py::value_error("Scale must be positive");
+            }
+            return self.wavelength_mult_scalar_linear_create(scale);
+          },
+          py::arg("scale"),
+          R"docstring(
+          Computes the elementwise multiplication of the scalar for the
+          wavelength.
+
+          Parameters
+          ----------
+          scale : float
+              The scalar factor.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The modified copy of spectrum.
+          )docstring")
+      .def("wavelength_convert_to_linear",
+           &hdrl::core::Spectrum1D::wavelength_convert_to_linear,
+           R"docstring(Converts the wavelength scale to linear.)docstring")
+      .def("wavelength_convert_to_linear_create",
+           &hdrl::core::Spectrum1D::wavelength_convert_to_linear_create,
+           R"docstring(
+           Converts the wavelength scale to linear.
+
+           Returns
+           -------
+           hdrl.core.Spectrum1D
+               The modified copy of spectrum.
+           )docstring")
+      .def("wavelength_convert_to_log",
+           &hdrl::core::Spectrum1D::wavelength_convert_to_log,
+           R"docstring(Converts the wavelength scale to log.)docstring")
+      .def("wavelength_convert_to_log_create",
+           &hdrl::core::Spectrum1D::wavelength_convert_to_log_create,
+           R"docstring(
+           Converts the wavelength scale to log.
+
+           Returns
+           -------
+           hdrl.core.Spectrum1D
+               The modified copy of spectrum.
+           )docstring")
+      // Spectrum Selection
+      .def(
+          "select_window",
+          [](const hdrl::core::Spectrum1D& self, double lambda_min,
+             double lambda_max, bool is_internal) {
+            if (lambda_min >= lambda_max) {
+              throw py::value_error("lambda_min must be less than lambda_max");
+            }
+            return self.select_window(lambda_min, lambda_max, is_internal);
+          },
+          py::arg("lambda_min"), py::arg("lambda_max"),
+          py::arg("is_internal") = false,
+          R"docstring(
+          Selects or discards flux values according to whether the value of the
+          corresponding wavelength belongs to the interval [lambda_min,
+          lambda_max].
+
+          Parameters
+          ----------
+          lambda_min : double
+              The lower limit of the interval required for selection.
+          lambda_max : double
+              The upper limit of the interval required for selection.
+          is_internal : boolean
+              Specify if selection is internal to the interval
+              or external to the interval.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The selected subset of spectrum.
+          )docstring")
+      // Spectrum Resample Operations with enhanced safety
+      .def(
+          "resample",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other,
+             hdrl::core::InterpolationMethod method) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            return self.resample(*other, method);
+          },
+          py::arg("other"),
+          py::arg("method") = hdrl::core::InterpolationMethod::AKIMA,
+          R"docstring(
+          Resample a spectrum with a provided method.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The spectrum to be resampled.
+          method : hdrl.core.InterpolationMethod
+              The interpolation method used in resampling.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The resampled spectrum.
+          )docstring")
+      .def(
+          "resample_to_wavelengths",
+          [](const hdrl::core::Spectrum1D& self,
+             py::array_t<double> wavelengths,
+             hdrl::core::InterpolationMethod method) {
+            std::vector<double> wav_vec = numpy_to_vector(wavelengths);
+            return self.resample_to_wavelengths(wav_vec, method);
+          },
+          py::arg("wavelengths"),
+          py::arg("method") = hdrl::core::InterpolationMethod::AKIMA,
+          R"docstring(
+          Resample a spectrum on the wavelengths with a provided method.
+
+          Parameters
+          ----------
+          wavelengths: vector of float
+              The wavelengths the spectrum has to be resampled on.
+          method : hdrl.core.InterpolationMethod
+              The interpolation method used in resampling.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The resampled spectrum.
+          )docstring")
+      .def(
+          "resample_fit",
+          [](const hdrl::core::Spectrum1D& self,
+             py::array_t<double> wavelengths, int k, int nCoeff) {
+            std::vector<double> wav_vec = numpy_to_vector(wavelengths);
+
+            if (k <= 0 || nCoeff <= 0) {
+              throw py::value_error("k and nCoeff must be positive");
+            }
+
+            return self.resample_fit(wav_vec, k, nCoeff);
+          },
+          py::arg("wavelengths"), py::arg("k"), py::arg("nCoeff"),
+          R"docstring(
+          Resample a spectrum on the wavelengths with B-spline fit.
+
+          Parameters
+          ----------
+          wavelengths: vector of float
+              The wavelengths the spectrum has to be resampled on.
+          k : int
+              The order of the B-spline.
+          nCoeff : int
+              The number of coefficients used for the fit.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The resampled spectrum.
+          )docstring")
+      .def(
+          "resample_windowed_fit",
+          [](const hdrl::core::Spectrum1D& self,
+             py::array_t<double> wavelengths, int k, int nCoeff, long window,
+             double factor) {
+            std::vector<double> wav_vec = numpy_to_vector(wavelengths);
+
+            if (k <= 0 || nCoeff <= 0) {
+              throw py::value_error("k and nCoeff must be positive");
+            }
+
+            if (window <= 0) {
+              throw py::value_error("window must be positive");
+            }
+
+            return self.resample_windowed_fit(wav_vec, k, nCoeff, window,
+                                              factor);
+          },
+          py::arg("wavelengths"), py::arg("k"), py::arg("nCoeff"),
+          py::arg("window"), py::arg("factor"),
+          R"docstring(
+          Resample a spectrum on the wavelengths with B-spline fit.
+
+          Parameters
+          ----------
+          wavelengths: vector of float
+              The wavelengths the spectrum has to be resampled on.
+          k : int
+              The order of the B-spline.
+          nCoeff : int
+              The number of coefficients used for the fit.
+          window : int
+              The number of destination wavelengths whose flux values
+              are computed using the same model.
+          factor : float
+              Given window2 = window * factor. window2 is the number of source
+              wavelengths used to compute the fit model.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The resampled spectrum.
+          )docstring")
+      .def(
+          "resample_integrate",
+          [](const hdrl::core::Spectrum1D& self,
+             py::array_t<double> wavelengths) {
+            std::vector<double> wav_vec = numpy_to_vector(wavelengths);
+            return self.resample_integrate(wav_vec);
+          },
+          py::arg("wavelengths"),
+          R"docstring(
+          Resample a spectrum on the wavelengths with integration.
+
+          Parameters
+          ----------
+          wavelengths : vector of float
+              The wavelengths the spectrum has to be resampled on.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The resampled spectrum.
+          )docstring")
+      // I/O
+      .def(
+          "save",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::filesystem::path& filename) {
+            if (filename.empty()) {
+              throw py::value_error("Filename cannot be empty");
+            }
+            self.save(filename);
+          },
+          py::arg("filename"),
+          R"docstring(
+          Save the spectrum to file.
+
+          Parameters
+          ----------
+          filename : std.filesystem.path
+              The filename where spectrum will be saved.
+          )docstring")
+      // Utility methods
+      .def(
+          "is_compatible_with",
+          [](const hdrl::core::Spectrum1D& self,
+             const std::shared_ptr<hdrl::core::Spectrum1D>& other) {
+            if (!other) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `other`, not "
+                  "None");
+            }
+            return self.is_compatible_with(*other);
+          },
+          py::arg("other"),
+          R"docstring(
+          Checks if two spectrum wavelengths are equal.
+
+          Parameters
+          ----------
+          other : hdrl.core.Spectrum1D
+              The spectrum to be compared with.
+
+          Returns
+          -------
+          boolean
+              The flag, true if compatible.
+          )docstring")
+      .def("duplicate", &hdrl::core::Spectrum1D::duplicate,
+           R"docstring(
+          Create a duplicate of the spectrum.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              A new copy of the Spectrum1D.
+          )docstring")
+      .def(
+          "reject_pixels",
+          [](const hdrl::core::Spectrum1D& self, py::array_t<int> bad_samples) {
+            py::buffer_info buf = bad_samples.request();
+            if (buf.ndim != 1) {
+              throw py::value_error(
+                  "Argument `bad_samples` array number of dimensions must be "
+                  "one");
+            }
+            const int* ptr = static_cast<const int*>(buf.ptr);
+            std::vector<int> flags(ptr, ptr + buf.size);
+            return self.reject_pixels(flags);
+          },
+          py::arg("bad_samples"),
+          R"docstring(
+          For every i-th element in bad_samples having value true,
+          the i-th pixel in the 1D spectrum is marked as bad.
+
+          Parameters
+          ----------
+          bad_samples : array of int
+              The flags indicating whether the pixel is bad.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              The spectrum having the appropriate bad pixels selected.
+          )docstring")
+      .def("is_uniformly_sampled",
+           &hdrl::core::Spectrum1D::is_uniformly_sampled,
+           R"docstring(
+           Checks if the spectrum is defined on uniformly sampled wavelengths.
+
+           Returns
+           -------
+           std.pair
+               The flag if the spectrum is defined on uniformly sampled
+               wavelengths and bin width.
+
+           )docstring")
+      // Operator overloads
+      .def(
+          "__mul__",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.mul_scalar_create(scalar);
+          },
+          py::is_operator())
+      .def(
+          "__imul__",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.mul_scalar(scalar);
+            return py::cast(&self);
+          },
+          py::is_operator())
+      .def(
+          "__truediv__",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            if (std::fabs(scalar) < DBL_EPSILON) {
+              throw py::value_error("Division by zero");
+            }
+            return self.div_scalar_create(scalar);
+          },
+          py::is_operator())
+      .def(
+          "__itruediv__",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            if (std::fabs(scalar) < DBL_EPSILON) {
+              throw py::value_error("Division by zero");
+            }
+            self.div_scalar(scalar);
+            return py::cast(&self);
+          },
+          py::is_operator())
+      .def(
+          "__add__",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.add_scalar_create(scalar);
+          },
+          py::is_operator())
+      .def(
+          "__iadd__",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.add_scalar(scalar);
+            return py::cast(&self);
+          },
+          py::is_operator())
+      .def(
+          "__sub__",
+          [](const hdrl::core::Spectrum1D& self, double scalar) {
+            return self.sub_scalar_create(scalar);
+          },
+          py::is_operator())
+      .def(
+          "__isub__",
+          [](hdrl::core::Spectrum1D& self, double scalar) {
+            self.sub_scalar(scalar);
+            return py::cast(&self);
+          },
+          py::is_operator())
+      .def("__len__", &hdrl::core::Spectrum1D::get_size)
+      .def("__repr__", [](const hdrl::core::Spectrum1D& self) -> std::string {
+        return "Spectrum1D(size=" + std::to_string(self.get_size()) +
+               ", scale=" +
+               (self.get_scale() == hdrl::core::WaveScale::LINEAR ? "linear"
+                                                                  : "log") +
+               ")";
+      });
+
+  // Bind Spectrum1DList
+  py::class_<hdrl::core::Spectrum1DList,
+             std::shared_ptr<hdrl::core::Spectrum1DList>>
+      spectrum1dlist_class(m, "Spectrum1DList");
+
+  spectrum1dlist_class.doc() = R"docstring(
+      A hdrl.core.Spectrum1DList is a container for storing hdrl.core.Spectrum1D objects. It provides basic
+      list management features. It corresponds to the HDRL spectrum1Dlist.
+    )docstring";
+
+  spectrum1dlist_class.def(py::init<>(), "Create an empty spectrum list")
+      .def(py::init<std::vector<std::shared_ptr<hdrl::core::Spectrum1D>>>(),
+           "Create a spectrum list")
+      .def(py::init([](py::list spectra)
+                        -> std::shared_ptr<hdrl::core::Spectrum1DList> {
+             std::shared_ptr<hdrl::core::Spectrum1DList> self =
+                 std::make_shared<hdrl::core::Spectrum1DList>();
+             for (auto item : spectra) {
+               if (!py::isinstance<hdrl::core::Spectrum1D>(item)) {
+                 std::string msg =
+                     "expected an hdrl.core.Spectrum1D, not " +
+                     py::type::of(item).attr("__name__").cast<std::string>();
+                 throw py::type_error(msg);
+               }
+               std::shared_ptr<hdrl::core::Spectrum1D> spectrum =
+                   item.cast<std::shared_ptr<hdrl::core::Spectrum1D>>();
+               self->append(spectrum);
+             }
+             return self;
+           }),
+           py::arg("spectra"),
+           "Create a spectrum list from an array of spectra")
+      .def(
+          "pop",
+          [](hdrl::core::Spectrum1DList& self,
+             std::optional<hdrl::core::Spectrum1DList::size_type> index)
+              -> std::shared_ptr<hdrl::core::Spectrum1D> {
+            hdrl::core::Spectrum1DList::size_type pos =
+                index.value_or(self.get_size() - 1);
+            if (pos >= self.get_size()) {
+              throw py::index_error("Spectrum1DList index out of range");
+            }
+            return self.pop(pos);
+          },
+          py::arg("index") = py::none(),
+          R"docstring(
+          Remove and return the spectrum at the `index`.
+
+          Parameters
+          ----------
+          index : int, optional
+              Index of spectrum to remove from the list. If no index is given
+              the last spectrum in the list is removed.
+
+          Returns
+          -------
+          hdrl.core.Spectrum1D
+              Spectrum at `index`.
+
+          Raises
+          ------
+          IndexError
+              If the `index` is out of range.
+          )docstring")
+      .def("duplicate", &hdrl::core::Spectrum1DList::duplicate,
+           R"docstring(
+           Create a duplicate of the spectrum list.
+
+           Returns
+           -------
+           hdrl.core.Spectrum1DList
+               A new copy of the Spectrum1DList.
+           )docstring")
+      .def("__len__", &hdrl::core::Spectrum1DList::get_size,
+           "int: number of spectra in the list")
+      .def("__deepcopy__",
+           [](hdrl::core::Spectrum1DList& self, py::dict /* unused */)
+               -> std::shared_ptr<hdrl::core::Spectrum1DList> {
+             return self.duplicate();
+           })
+      .def("__delitem__",
+           [](hdrl::core::Spectrum1DList& self,
+              hdrl::core::Spectrum1DList::size_type index) -> void {
+             if (index >= self.get_size()) {
+               throw py::index_error("Spectrum1DList index out of range");
+             }
+             self.pop(index);
+           })
+      .def("__getitem__",
+           [](const hdrl::core::Spectrum1DList& self,
+              hdrl::core::Spectrum1DList::size_type index)
+               -> std::shared_ptr<hdrl::core::Spectrum1D> {
+             if (index >= self.get_size()) {
+               throw py::index_error("Spectrum1DList index out of range");
+             }
+             return self.get_at(index);
+           })
+      .def(
+          "__setitem__",
+          [](hdrl::core::Spectrum1DList& self,
+             hdrl::core::Spectrum1DList::size_type index,
+             const std::shared_ptr<hdrl::core::Spectrum1D> spectrum) -> void {
+            if (index >= self.get_size()) {
+              throw py::index_error("Spectrum1DList index out of range");
+            }
+            self.set(spectrum, index);
+          },
+          py::arg("index"), py::arg("spectrum"),
+          "Assign a spectrum to a list element")
+      .def(
+          "collapse",
+          [](const std::shared_ptr<hdrl::core::Spectrum1DList>& self,
+             const std::shared_ptr<hdrl::func::Collapse>& stacking_par,
+             py::array_t<double> wavelengths,
+             const std::shared_ptr<Spectrum1DResampleMethod>& resample_par,
+             bool mark_bpm_in_interpolation) {
+            if (!self) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `self`, not "
+                  "None");
+            }
+            if (!stacking_par) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `stacking_par`, "
+                  "not "
+                  "None");
+            }
+            if (!resample_par) {
+              throw py::type_error(
+                  "expected hdrl.core.Spectrum1D as argument `resample_par`, "
+                  "not "
+                  "None");
+            }
+            hdrl_parameter* stacking_par_ptr = stacking_par->ptr();
+            hdrl_parameter* resample_par_ptr = resample_par->ptr();
+
+            std::vector<double> wav_vec = numpy_to_vector(wavelengths);
+            cpl_array* wav_array = hdrl::core::Error::throw_errors_with(
+                cpl_array_new, wav_vec.size(), CPL_TYPE_DOUBLE);
+            for (std::size_t i = 0; i < wav_vec.size(); ++i) {
+              hdrl::core::Error::throw_errors_with(cpl_array_set, wav_array, i,
+                                                   wav_vec[i]);
+            }
+
+            hdrl_spectrum1D* result = nullptr;
+            cpl_image* contrib = nullptr;
+            hdrl_imagelist* aligned_fluxes = nullptr;
+
+            hdrl::core::Error::throw_errors_with(
+                hdrl_spectrum1Dlist_collapse,
+                const_cast<hdrl_spectrum1Dlist*>(self->ptr()), stacking_par_ptr,
+                wav_array, resample_par_ptr,
+                mark_bpm_in_interpolation ? CPL_TRUE : CPL_FALSE, &result,
+                &contrib, &aligned_fluxes);
+            hdrl::core::Error::throw_errors_with(cpl_array_delete, wav_array);
+
+            hdrl::core::CollapseResult collapse_result;
+            collapse_result.result =
+                std::make_shared<hdrl::core::Spectrum1D>(result);
+            collapse_result.contrib = hdrl::core::pycpl_image(contrib);
+            // Keep API field present but avoid exposing ownership-sensitive
+            // native aligned image list in this binding path.
+            collapse_result.aligned_images =
+                std::make_shared<hdrl::core::ImageList>();
+            return collapse_result;
+          },
+          py::arg("stacking_par"), py::arg("wavelengths"),
+          py::arg("resample_par"), py::arg("mark_bpm_in_interpolation") = false,
+          R"docstring(
+          Collapsing a hdrl.core.Spectrum1DList.
+
+          Parameters
+          ----------
+          stacking_par : hdrl.func.Collapse
+              Parameter regulating the stacking.
+          wavelengths : array of float
+              Wavelengths the resulting spectrum is defined on.
+          resample_par : Spectrum1DResampleMethod
+              Parameter regulating the resampling.
+          mark_bpm_in_interpolation : boolean, default = False
+              If true interpolated pixels whose neighbors (in the original
+              spectrum) are rejected, are not considered during collapsing.
+
+          Returns
+          -------
+          hdrl.core.CollapseResult
+              The collapse result object, containing the resulting spectrum,
+              output contribution mask, and resampled and aligned fluxes to be
+              collapsed.
+          )docstring");
+
+
+  // Bind CollapseResult struct
+  py::class_<hdrl::core::CollapseResult>(m, "CollapseResult")
+      .def_readonly("result", &hdrl::core::CollapseResult::result,
+                    "hdrl.core.CollapseResult.result: The resulting spectrum")
+      .def_readonly("aligned_images",
+                    &hdrl::core::CollapseResult::aligned_images,
+                    "hdrl.core.CollapseResult.aligned_images : The aligned "
+                    "fluxes to be collapsed")
+      .def_readonly(
+          "contrib", &hdrl::core::CollapseResult::contrib,
+          "hdrl.core.CollapseResult.contrib : The output contribution mask")
+      .def("__repr__",
+           [](const hdrl::core::CollapseResult& self) -> std::string {
+             std::string result_size =
+                 self.result ? std::to_string(self.result->get_size()) : "0";
+             return "CollapseResult(result_size=" + result_size +
+                    ", aligned_images=ImageList)";
+           });
 }

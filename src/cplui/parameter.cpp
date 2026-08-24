@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 #include <cstdio>
 #include <iterator>
 #include <sstream>
+
+#include <cpl_type.h>
 
 #include "cplcore/error.hpp"
 
@@ -539,19 +541,21 @@ ParameterEnum::ParameterEnum(std::string name, std::string description,
                              std::string context, std::string def_value,
                              std::vector<std::string>& alternatives)
 {
-  int default_idx = -1;
+  cpl_size default_idx = -1;
 
-  std::vector<const char*> cstrings;  // Convert to char **
+  // Convert to char **
+  std::vector<const char*> cstrings;
+  using size_type = std::vector<std::string>::size_type;
 
-  for (int i = 0; i < alternatives.size();
-       i++) {  // Copy the list over, while also finding the default value
-               // position
+  for (size_type i = 0; i < alternatives.size(); ++i) {
+    // Copy the list over, while also finding the default value position
     if (def_value == alternatives[i]) {
       default_idx = i;
     }
     cstrings.push_back(alternatives[i].c_str());
   }
-  if (default_idx == -1) {  // Hasn't been found
+  if (default_idx == -1) {
+    // Hasn't been found
     std::ostringstream alternatives_string;
     alternatives_string << "'";
     std::copy(alternatives.begin(), alternatives.end() - 1,

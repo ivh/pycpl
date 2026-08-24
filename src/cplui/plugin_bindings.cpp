@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,6 +36,22 @@
 #include "cplui/parameter.hpp"
 #include "cplui/plugin.hpp"
 
+namespace
+{
+inline std::vector<std::string>
+split(const std::string& str, char delimiter = ':')
+{
+  std::vector<std::string> strings;
+  std::stringstream sstream(str);
+  std::string item;
+
+  while (std::getline(sstream, item, delimiter)) {
+    strings.push_back(item);
+  }
+  return std::move(strings);
+}
+}  // namespace
+
 // Binding method for plugins/recipes: classes contained within plugin.hpp and
 // plugin.hpp, to be called by the main bindings file (bindings.cpp)
 void
@@ -43,36 +60,18 @@ bind_plugin(py::module& m)
   py::register_exception<cpl::ui::RecipeNotFoundException>(
       m, "RecipeNotFoundException");
 
-  // Try to set a sensible default recipe directory at runtime
-  // Priority: 1) PYCPL_RECIPE_DIR env var, 2) sys.prefix/lib/esopipes-plugins, 3) empty
   try {
-    py::object sys = py::module::import("sys");
-    py::object os = py::module::import("os");
-
-    std::vector<std::string> default_dirs;
-
-    // First, check environment variable
-    if (py::hasattr(os.attr("environ"), "get")) {
-      py::object env_dir = os.attr("environ").attr("get")("PYCPL_RECIPE_DIR");
-      if (!env_dir.is_none()) {
-        default_dirs.push_back(env_dir.cast<std::string>());
-      }
-    }
-
-    // Then try sys.prefix/lib/esopipes-plugins (common for conda/pip installs)
-    std::string prefix = sys.attr("prefix").cast<std::string>();
-    std::filesystem::path plugin_dir = std::filesystem::path(prefix) / "lib" / "esopipes-plugins";
-    if (std::filesystem::exists(plugin_dir)) {
-      default_dirs.push_back(plugin_dir.string());
-    }
-
-    // Only set if we found at least one valid directory
-    if (!default_dirs.empty()) {
-      cpl::ui::CRecipe::set_recipe_dir(default_dirs);
-    }
+    // The default recipe dir is expected to be provided through the
+    // preprocessor symbol PYCPL_RECIPE_DIR, configured in the build system
+    std::vector<std::string> default_dir = split(PYCPL_RECIPE_DIR);
+    cpl::ui::CRecipe::set_recipe_dir(default_dir);
   }
-  catch (const std::exception& e) {
-    // Silently ignore any errors - users can set recipe_dir manually if needed
+  catch (const std::filesystem::filesystem_error& bad_recipe_dir) {
+    py::module::import("warnings")
+        .attr("warn")(
+            std::string("A directory in the built-in list of recipes search "
+                        "paths '" PYCPL_RECIPE_DIR "' is not accessible: ") +
+            bad_recipe_dir.what());
   }
 
   py::class_<cpl::ui::CRecipe, std::shared_ptr<cpl::ui::CRecipe>> crecipe(
@@ -98,25 +97,27 @@ bind_plugin(py::module& m)
       .def_property_readonly("parameters", &cpl::ui::CRecipe::get_parameters,
                              "A list of recipe parameters and their defaults. "
                              "This is a copy, not a reference.")
-      .def_property("author", &cpl::ui::Recipe::get_author,
-                    &cpl::ui::Recipe::set_author, "Name of the recipe's author")
-      .def_property("copyright", &cpl::ui::Recipe::get_copyright,
-                    &cpl::ui::Recipe::set_copyright,
+      .def_property("author", &cpl::ui::CRecipe::get_author,
+                    &cpl::ui::CRecipe::set_author,
+                    "Name of the recipe's author")
+      .def_property("copyright", &cpl::ui::CRecipe::get_copyright,
+                    &cpl::ui::CRecipe::set_copyright,
                     "Recipe's license and copyright information. Must be "
                     "compatible with that of CPL.")
-      .def_property("description", &cpl::ui::Recipe::get_description,
-                    &cpl::ui::Recipe::set_description)
-      .def_property("email", &cpl::ui::Recipe::get_email,
-                    &cpl::ui::Recipe::set_email, "Author's contact information")
-      .def_property("synopsis", &cpl::ui::Recipe::get_synopsis,
-                    &cpl::ui::Recipe::set_synopsis,
+      .def_property("description", &cpl::ui::CRecipe::get_description,
+                    &cpl::ui::CRecipe::set_description)
+      .def_property("email", &cpl::ui::CRecipe::get_email,
+                    &cpl::ui::CRecipe::set_email,
+                    "Author's contact information")
+      .def_property("synopsis", &cpl::ui::CRecipe::get_synopsis,
+                    &cpl::ui::CRecipe::set_synopsis,
                     "Detailed description of a plugin.")
       .def_property(
-          "version", &cpl::ui::Recipe::get_version,
-          py::overload_cast<const std::string&>(&cpl::ui::Recipe::set_version),
+          "version", &cpl::ui::CRecipe::get_version,
+          py::overload_cast<const std::string&>(&cpl::ui::CRecipe::set_version),
           "Recipe version number")
-      .def_property("name", &cpl::ui::Recipe::get_name,
-                    &cpl::ui::Recipe::set_name, "Unique name of the Recipe")
+      .def_property("name", &cpl::ui::CRecipe::get_name,
+                    &cpl::ui::CRecipe::set_name, "Unique name of the Recipe")
       .def_property_static(
           "recipe_dir",
           [](py::object /* self */) -> std::vector<std::string> {
@@ -129,7 +130,7 @@ bind_plugin(py::module& m)
             }
             catch (const py::cast_error& /* unused */) {
               try {
-                dirs = {setting.cast<std::string>()};
+                dirs = split(setting.cast<std::string>());
               }
               catch (const py::cast_error& /* unused */) {
                 throw cpl::core::IllegalInputError(
@@ -139,8 +140,7 @@ bind_plugin(py::module& m)
             }
             cpl::ui::CRecipe::set_recipe_dir(dirs);
           },
-          "Path where recipes are installed. Is defaulted to "
-          "$CPL_ROOT/lib/esopipes_pipelines")
+          "List of directories where recipes are installed.")
       // A more private run alternative to run recipe in the same process
       // This allows multiple Pyesorex instances to be launched from a
       // multiprocessing pool to give more flexibility in the usage of

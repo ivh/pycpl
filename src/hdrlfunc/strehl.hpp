@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #include <pybind11/stl.h>
 
 #include "hdrlcore/image.hpp"
-#include "hdrlcore/parameter.hpp"
 
 namespace py = pybind11;
 
@@ -35,23 +34,22 @@ namespace hdrl
 namespace func
 {
 
-using hdrl::core::Error;
-using hdrl::core::Image;
-using hdrl::core::Parameter;
-
 class StrehlResult;
 
 class Strehl
 {
  public:
-  Strehl();
   Strehl(double wavelength, double m1, double m2, double pixel_scale_x,
          double pixel_scale_y, double flux_radius, double bkg_radius_low,
          double bkg_radius_high);
-  StrehlResult compute(std::shared_ptr<Image> himage);
+  ~Strehl();
+  Strehl(const Strehl&) = delete;
+  Strehl& operator=(const Strehl&) = delete;
+  Strehl(Strehl&& other) noexcept;
+  Strehl& operator=(Strehl&& other) noexcept;
+  StrehlResult compute(std::shared_ptr<hdrl::core::Image> himage);
 
-  hdrl_parameter* ptr();
-  void parameter_create_(void);
+  hdrl_parameter* ptr() const;
 
   // Getter methods
   double get_wavelength() const;
@@ -74,7 +72,7 @@ class Strehl
   double bkg_radius_high_;
 
  protected:
-  hdrl_parameter* m_interface;
+  hdrl_parameter* m_interface = nullptr;
 };
 
 // Python binding function

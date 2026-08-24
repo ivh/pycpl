@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ complexf_to_cpp(float _Complex value)
   According to the C specification, _Complex numbers are required to be
   stored as an array of [2], where first element is real, second is imaginary
   */
-  float(&z)[2] = reinterpret_cast<float(&)[2]>(value);
+  float (&z)[2] = reinterpret_cast<float (&)[2]>(value);
   return std::complex<float>(z[0], z[1]);
 }
 
@@ -40,7 +40,7 @@ complexd_to_cpp(double _Complex value)
   According to the C specification, _Complex numbers are required to be
   stored as an array of [2], where first element is real, second is imaginary
   */
-  double(&z)[2] = reinterpret_cast<double(&)[2]>(value);
+  double (&z)[2] = reinterpret_cast<double (&)[2]>(value);
   return std::complex<double>(z[0], z[1]);
 }
 
@@ -51,8 +51,8 @@ float _Complex complex_to_c(std::complex<float> value)
   According to the C specification, _Complex numbers are required to be
   stored as an array of [2], where first element is real, second is imaginary
   */
-  reinterpret_cast<float(&)[2]>(z)[0] = value.real();
-  reinterpret_cast<float(&)[2]>(z)[1] = value.imag();
+  reinterpret_cast<float (&)[2]>(z)[0] = value.real();
+  reinterpret_cast<float (&)[2]>(z)[1] = value.imag();
   return z;
 }
 
@@ -63,8 +63,8 @@ double _Complex complex_to_c(std::complex<double> value)
   According to the C specification, _Complex numbers are required to be
   stored as an array of [2], where first element is real, second is imaginary
   */
-  reinterpret_cast<double(&)[2]>(z)[0] = value.real();
-  reinterpret_cast<double(&)[2]>(z)[1] = value.imag();
+  reinterpret_cast<double (&)[2]>(z)[0] = value.real();
+  reinterpret_cast<double (&)[2]>(z)[1] = value.imag();
   return z;
 }
 

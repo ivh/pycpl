@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,23 +19,30 @@
 
 #include <hdrl_parameter.h>
 
+#include <memory>
+
 namespace hdrl
 {
 namespace core
 {
 
+/**
+ * Owns an hdrl_parameter with shared ownership so copies share the underlying
+ * pointer safely (required for Python bindings and HDRL C APIs that only
+ * borrow).
+ */
 class Parameter
 {
  public:
   Parameter();
-  Parameter(hdrl_parameter* to_steal);
-  // ParameterType get_type();
-  // Destructor hdrl_parameter_delete / hdrl_parameter_destroy
+  explicit Parameter(hdrl_parameter* to_steal);
+  /** Wrap an existing shared_ptr (e.g. borrowed lifetime from Collapse). */
+  explicit Parameter(std::shared_ptr<hdrl_parameter> impl);
   hdrl_parameter* ptr();
-  // To add some operator= overloading to allow parameter to be copied/assigned
-  // ? Parameter& operator=(const Parameter& other);
- protected:
-  hdrl_parameter* m_interface;
+  const hdrl_parameter* ptr() const;
+
+ private:
+  std::shared_ptr<hdrl_parameter> m_interface;
 };
 
 

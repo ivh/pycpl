@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 
 #include "hdrlcore/image.hpp"
 #include "hdrlcore/imagelist.hpp"
-#include "hdrlcore/parameter.hpp"
 #include "hdrlcore/pycpl_types.hpp"
 #include "hdrlfunc/collapse.hpp"
 
@@ -29,12 +28,6 @@ namespace hdrl
 {
 namespace func
 {
-using hdrl::core::Image;
-using hdrl::core::ImageList;
-using hdrl::core::Parameter;
-using hdrl::core::pycpl_image;
-using hdrl::core::pycpl_mask;
-using hdrl::func::Collapse;
 
 class Fringe
 {
@@ -48,21 +41,23 @@ class Fringe
   };
 
   // Compute methods
-  void compute(std::shared_ptr<ImageList> ilist_fringe,
-               hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
-               Collapse collapse_params);
-  std::shared_ptr<Image> get_master() const;
+  void compute(std::shared_ptr<hdrl::core::ImageList> ilist_fringe,
+               hdrl::core::pycpl_imagelist ilist_obj,
+               hdrl::core::pycpl_mask stat_mask,
+               hdrl::func::Collapse collapse_params);
+  std::shared_ptr<hdrl::core::Image> get_master() const;
   hdrl::core::pycpl_image get_contrib_map() const;
   hdrl::core::pycpl_table get_qctable() const;
 
   CorrectResult
-  correct(std::shared_ptr<ImageList> ilist_fringe,
-          hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
-          std::shared_ptr<Image> masterfringe = nullptr);
+  correct(std::shared_ptr<hdrl::core::ImageList> ilist_fringe,
+          hdrl::core::pycpl_imagelist ilist_obj,
+          hdrl::core::pycpl_mask stat_mask,
+          std::shared_ptr<hdrl::core::Image> masterfringe = nullptr);
 
  protected:
   void ensure_compute() const;
-  std::shared_ptr<Image> m_master;
+  std::shared_ptr<hdrl::core::Image> m_master;
   hdrl::core::pycpl_image m_contrib_map;
   hdrl::core::pycpl_table m_qctable;
 };

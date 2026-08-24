@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 #ifndef PYHDRL_CORE_PYCPL_WCS_HPP_
 #define PYHDRL_CORE_PYCPL_WCS_HPP_
 
+#include <cstring>
 #include <string>
-#include <vector>
 
 #include <cpl_memory.h>
 #include <cpl_propertylist.h>
@@ -73,132 +73,21 @@ struct type_caster<hdrl::core::pycpl_wcs>
                                          "Expected cpl.drs.WCS type");
     }
 
-    // Create a new cpl_wcs with the contents of the cpl.drs.WCS object
     try {
-      // Implement Python equivalent of hdrl_wcs_to_propertylist()
-
-      // The image dimensionality
-      std::vector<int> idims =
-          source.attr("image_dims").cast<std::vector<int>>();
-      // Equivalent of source.attr("get_image_naxis")().cast<int>();
-      int naxis = idims.size();
-      std::vector<double> crval =
-          source.attr("crval").cast<std::vector<double>>();
-      std::vector<double> crpix =
-          source.attr("crpix").cast<std::vector<double>>();
-      std::vector<std::string> ctype =
-          source.attr("ctype").cast<std::vector<std::string>>();
-      std::vector<std::string> cunit =
-          source.attr("cunit").cast<std::vector<std::string>>();
-      // py::object since we have not yet implemented a custom type caster for
-      // cpl.core.Matrix we can access its contents using __getitem__ (see
-      // below)
-      py::object cd = source.attr("cd");
-
-      // An empty propertylist to add keywords to
-      cpl_propertylist* header = cpl_propertylist_new();
-
-      // Add keywords; this follows the approach in hdrl_wcs_to_propertylist
-      // Check NAXIS
-      for (cpl_size i = 0; i < naxis; i++) {
-        if (i == 0) {
-          cpl_propertylist_update_int(header, "NAXIS", naxis);
+      py::object obj = source.attr("_handle");
+      if ((obj && !obj.is_none()) && py::isinstance<py::capsule>(obj)) {
+        py::capsule wcs = obj.cast<py::capsule>();
+        if (strncmp(wcs.name(), "cpl_native_wcs_info", 20) == 0) {
+          value.w = cpl_wcs_duplicate(wcs.get_pointer<cpl_wcs>());
+          return true;
+        } else {
+          return false;
         }
-        char* buf = cpl_sprintf("NAXIS%lld", i + 1);
-        cpl_propertylist_update_int(header, buf, idims[i]);
-        cpl_free(buf);
+      } else {
+        return false;
       }
-#if 0
-      // FIXME: Not relevant for our purposes?
-      // Make sure to have the right NAXIS keywords if 2D is forced
-      if (only2d == TRUE) {
-          cpl_propertylist_update_int(header, "NAXIS", 2);
-
-          if(cpl_propertylist_has(header, "NAXIS3")){
-          cpl_propertylist_erase(header, "NAXIS3");
-          }
-        }
-#endif
-
-      // for 2D images
-      if (crval.size() > 0) {
-        cpl_propertylist_update_double(header, "CRVAL1", crval[0]);
-        cpl_propertylist_update_double(header, "CRVAL2", crval[1]);
-      }
-
-      if (crpix.size() > 0) {
-        cpl_propertylist_update_double(header, "CRPIX1", crpix[0]);
-        cpl_propertylist_update_double(header, "CRPIX2", crpix[1]);
-      }
-
-      if (ctype.size() > 0) {
-        cpl_propertylist_update_string(header, "CTYPE1", ctype[0].c_str());
-        cpl_propertylist_update_string(header, "CTYPE2", ctype[1].c_str());
-      }
-
-      if (cunit.size() > 0) {
-        cpl_propertylist_update_string(header, "CUNIT1", cunit[0].c_str());
-        cpl_propertylist_update_string(header, "CUNIT2", cunit[1].c_str());
-      }
-
-      if (!cd.is(py::none())) {
-        // Use __getitem__ to get the cpl.core.Matrix elements e.g. cd11 =
-        // cd[0][0]
-        double cd11 =
-            cd.attr("__getitem__")(0).attr("__getitem__")(0).cast<double>();
-        double cd12 =
-            cd.attr("__getitem__")(0).attr("__getitem__")(1).cast<double>();
-        double cd21 =
-            cd.attr("__getitem__")(1).attr("__getitem__")(0).cast<double>();
-        double cd22 =
-            cd.attr("__getitem__")(1).attr("__getitem__")(1).cast<double>();
-        cpl_propertylist_update_double(header, "CD1_1", cd11);
-        cpl_propertylist_update_double(header, "CD1_2", cd12);
-        cpl_propertylist_update_double(header, "CD2_1", cd21);
-        cpl_propertylist_update_double(header, "CD2_2", cd22);
-      }
-
-      // For 3D cubes
-      // if (only2d == FALSE && cpl_array_get_size(crval) > 2) {
-      if (crval.size() > 2) {
-        cpl_propertylist_update_double(header, "CRVAL3", crval[2]);
-
-        if (crpix.size() > 2) {
-          cpl_propertylist_update_double(header, "CRPIX3", crpix[2]);
-        }
-
-        if (ctype.size() > 2) {
-          cpl_propertylist_update_string(header, "CTYPE3", ctype[2].c_str());
-        }
-
-        if (cunit.size() > 2) {
-          cpl_propertylist_update_string(header, "CUNIT3", cunit[2].c_str());
-        }
-
-        if (!cd.is(py::none())) {
-          double cd13 =
-              cd.attr("__getitem__")(0).attr("__getitem__")(2).cast<double>();
-          double cd23 =
-              cd.attr("__getitem__")(1).attr("__getitem__")(2).cast<double>();
-          double cd31 =
-              cd.attr("__getitem__")(2).attr("__getitem__")(0).cast<double>();
-          double cd32 =
-              cd.attr("__getitem__")(2).attr("__getitem__")(1).cast<double>();
-          double cd33 =
-              cd.attr("__getitem__")(2).attr("__getitem__")(2).cast<double>();
-          cpl_propertylist_update_double(header, "CD1_3", cd13);
-          cpl_propertylist_update_double(header, "CD2_3", cd23);
-          cpl_propertylist_update_double(header, "CD3_1", cd31);
-          cpl_propertylist_update_double(header, "CD3_2", cd32);
-          cpl_propertylist_update_double(header, "CD3_3", cd33);
-        }
-      }
-
-      cpl_wcs* new_w = cpl_wcs_new_from_propertylist(header);
-      value.w = new_w;
-      return true;
     }
-    catch (py::error_already_set& err) {
+    catch (const py::error_already_set& /*unused */) {
       return false;
     }
   }

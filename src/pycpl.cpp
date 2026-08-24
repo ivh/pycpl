@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ PYBIND11_MODULE(cpl, m)
   // in case cpl_init has already been called elsewhere (e.g. PyHDRL)
   cpl_error_reset();
 
-  py::module cplui = m.def_submodule("ui", R"pydoc(CPL UI submodule
+  py::module_ cplui = m.def_submodule("ui", R"pydoc(CPL UI submodule
   
   This module provides the features to implement data processing modules 
   (recipes) which can be executed using the ESO data processing environments.
@@ -123,7 +123,7 @@ PYBIND11_MODULE(cpl, m)
   bind_frames(cplui);
   bind_plugin(cplui);
 
-  py::module cplcore = m.def_submodule("core", R"pydoc(CPL Core submodule
+  py::module_ cplcore = m.def_submodule("core", R"pydoc(CPL Core submodule
   
   This module provides the core functionality of CPL. It provides the basic
   data types, like images and tables, the basic operations defined for
@@ -144,7 +144,7 @@ PYBIND11_MODULE(cpl, m)
   bind_matrix(cplcore);
   bind_polynomial(cplcore);
 
-  py::module dfs = m.def_submodule("dfs", R"pydoc(CPL DFS submodule
+  py::module_ dfs = m.def_submodule("dfs", R"pydoc(CPL DFS submodule
 
   This module provides the necessary functionality to create data products
   which comply to the ESO Data Interface Control Document (DICD) standard.
@@ -160,7 +160,7 @@ PYBIND11_MODULE(cpl, m)
   )pydoc");
   bind_dfs(dfs);
 
-  py::module cpldrs = m.def_submodule("drs", R"pydoc(CPL DRS submodule
+  py::module_ cpldrs = m.def_submodule("drs", R"pydoc(CPL DRS submodule
   
   This module provides standard implementations of instrument independent,
   higher level data processing functions for general non-linear fitting, image
@@ -178,7 +178,7 @@ PYBIND11_MODULE(cpl, m)
   bind_geom_img(cpldrs);
 
   // HDRL module (accessible as cpl.hdrl or: from cpl import hdrl)
-  py::module hdrl = m.def_submodule("hdrl", R"pydoc(HDRL - High Level Data Reduction Library
+  py::module_ hdrl = m.def_submodule("hdrl", R"pydoc(HDRL - High Level Data Reduction Library
 
   Python bindings for the ESO High Level Data Reduction Library (HDRL).
   Provides algorithms for astronomical data reduction including airmass
@@ -186,7 +186,7 @@ PYBIND11_MODULE(cpl, m)
   overscan correction, image resampling, and more.
   )pydoc");
 
-  py::module hdrlcore = hdrl.def_submodule("core", R"pydoc(HDRL Core submodule
+  py::module_ hdrlcore = hdrl.def_submodule("core", R"pydoc(HDRL Core submodule
 
   This module provides the core data types required by the HDRL algorithms,
   including Image (with error propagation) and ImageList.
@@ -196,7 +196,7 @@ PYBIND11_MODULE(cpl, m)
   bind_hdrl_imagelist(hdrlcore);
   bind_spectrum1d(hdrlcore);
 
-  py::module hdrlfunc = hdrl.def_submodule("func", R"pydoc(HDRL Functionalities submodule
+  py::module_ hdrlfunc = hdrl.def_submodule("func", R"pydoc(HDRL Functionalities submodule
 
   This module provides the Python API for HDRL algorithms including:
   effective airmass, bad-pixel detection, barycentric correction,
@@ -219,7 +219,7 @@ PYBIND11_MODULE(cpl, m)
   bind_response(hdrlfunc);
   bind_strehl(hdrlfunc);
 
-  py::module hdrldebug = hdrl.def_submodule("debug", R"pydoc(HDRL Debug submodule
+  py::module_ hdrldebug = hdrl.def_submodule("debug", R"pydoc(HDRL Debug submodule
 
   This module provides utilities for testing PyCPL to PyHDRL type converters.
   Not intended for use by pipeline developers.

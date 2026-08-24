@@ -17,6 +17,7 @@ A few things to note:
 * For local development, use `uv sync --no-install-project` since editable installs don't work with the complex native build.
 * There is also the script [`pyhdrl_demo.py`](https://raw.githubusercontent.com/ivh/pycpl/refs/heads/master/pyhdrl_demo.py) that you can download alone, and simply run with `uv run pyhdrl_demo.py`. It should find this package and use it.
 * I chose the package version number the same as ESO's, but appending *.postNN* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, use only their index and/or install the fixed version number like *pycpl==1.0.3* .
+* **Version 1.0.4.post1 upgrades PyHDRL from 0.2.0 to 1.0.0, which changes the HDRL API.** `hdrl.core.Parameter` was removed, `hdrl.core.Spectrum1D`/`Spectrum1DList` were refactored, and `hdrl.func.Efficiency`/`Response` now take specific parameter types (`EfficiencyParameter`, `ResponseFitParameter`, ...) instead of the opaque `Parameter`. See ESO's [PyHDRL changelog](https://ftp.eso.org/pub/dfs/pipelines/libraries/pyhdrl/). This release also moves the bundled C libraries to CPL 7.4 and HDRL 1.6.0a5, as required by PyCPL 1.0.4.
 * The installation instructions below do not apply to this package. Instead do `(uv) pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/` or add the URL to your *pyproject.toml*. Like this, `uv sync` will install *pycpl* from here and *pyesorex* and *edps* from ESO, having them use the bundled pycpl:
 
 ```
@@ -147,7 +148,7 @@ The following instructions are directed towards developers and experienced users
 
 ### Software prerequisites
 
-* cpl >= 7.2.2
+* cpl >= 7.4
 * python >= 3.9
 * Python development headers 
     * package python3-devel (On Fedora, Red Hat, CentOS, etc.)
@@ -187,8 +188,8 @@ The typical installation process is the following, when installing:
   ```
 * from a public release tar archive:
   ```shell
-  tar -zxvf cpl-7.3.2.tar.gz
-  cd cpl-7.3.2
+  tar -zxvf cpl-7.4.tar.gz
+  cd cpl-7.4
   ./configure --prefix=/usr/local --with-cfitsio=/usr/local --with-wcslib=/usr/local --with-fftw=/usr/local
   make
   sudo make install

@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,43 +14,71 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "strehl.hpp"
+#include "hdrlfunc/strehl.hpp"
 
 #include <cstddef>
 
 #include "hdrlcore/error.hpp"
+#include "hdrlcore/image.hpp"
 
 namespace hdrl
 {
 namespace func
 {
 
+using hdrl::core::Error;
+using hdrl::core::Image;
 using hdrl::core::InvalidTypeError;
-
-Strehl::Strehl()
-{
-  wavelength_ = 0.0;
-  m1_ = 0.0;
-  m2_ = 0.0;
-  pixel_scale_x_ = 0.0;
-  pixel_scale_y_ = 0.0;
-  flux_radius_ = 0.0;
-  bkg_radius_low_ = 0.0;
-  bkg_radius_high_ = 0.0;
-}
 
 Strehl::Strehl(double wavelength, double m1, double m2, double pixel_scale_x,
                double pixel_scale_y, double flux_radius, double bkg_radius_low,
                double bkg_radius_high)
+    : wavelength_(wavelength), m1_(m1), m2_(m2), pixel_scale_x_(pixel_scale_x),
+      pixel_scale_y_(pixel_scale_y), flux_radius_(flux_radius),
+      bkg_radius_low_(bkg_radius_low), bkg_radius_high_(bkg_radius_high)
 {
-  wavelength_ = wavelength;
-  m1_ = m1;
-  m2_ = m2;
-  pixel_scale_x_ = pixel_scale_x;
-  pixel_scale_y_ = pixel_scale_y;
-  flux_radius_ = flux_radius;
-  bkg_radius_low_ = bkg_radius_low;
-  bkg_radius_high_ = bkg_radius_high;
+  m_interface = hdrl::core::Error::throw_errors_with(
+      hdrl_strehl_parameter_create, wavelength_, m1_, m2_, pixel_scale_x_,
+      pixel_scale_y_, flux_radius_, bkg_radius_low_, bkg_radius_high_);
+}
+
+Strehl::~Strehl()
+{
+  if (m_interface != nullptr) {
+    hdrl_parameter_delete(m_interface);
+    m_interface = nullptr;
+  }
+}
+
+Strehl::Strehl(Strehl&& other) noexcept
+    : wavelength_(other.wavelength_), m1_(other.m1_), m2_(other.m2_),
+      pixel_scale_x_(other.pixel_scale_x_),
+      pixel_scale_y_(other.pixel_scale_y_), flux_radius_(other.flux_radius_),
+      bkg_radius_low_(other.bkg_radius_low_),
+      bkg_radius_high_(other.bkg_radius_high_), m_interface(other.m_interface)
+{
+  other.m_interface = nullptr;
+}
+
+Strehl&
+Strehl::operator=(Strehl&& other) noexcept
+{
+  if (this != &other) {
+    if (m_interface != nullptr) {
+      hdrl_parameter_delete(m_interface);
+    }
+    wavelength_ = other.wavelength_;
+    m1_ = other.m1_;
+    m2_ = other.m2_;
+    pixel_scale_x_ = other.pixel_scale_x_;
+    pixel_scale_y_ = other.pixel_scale_y_;
+    flux_radius_ = other.flux_radius_;
+    bkg_radius_low_ = other.bkg_radius_low_;
+    bkg_radius_high_ = other.bkg_radius_high_;
+    m_interface = other.m_interface;
+    other.m_interface = nullptr;
+  }
+  return *this;
 }
 
 // Compute Strehl
@@ -62,19 +90,10 @@ Strehl::compute(std::shared_ptr<Image> himage)
                            "Image provided to Strehl compute must not be None");
   }
 
-  this->parameter_create_();
   hdrl_strehl_result res = Error::throw_errors_with(
       hdrl_strehl_compute, himage.get()->ptr(), m_interface);
 
   return StrehlResult(res);
-}
-
-void
-Strehl::parameter_create_(void)
-{
-  m_interface = hdrl::core::Error::throw_errors_with(
-      hdrl_strehl_parameter_create, wavelength_, m1_, m2_, pixel_scale_x_,
-      pixel_scale_y_, flux_radius_, bkg_radius_low_, bkg_radius_high_);
 }
 
 // Getter methods
@@ -127,7 +146,7 @@ Strehl::get_bkg_radius_high() const
 }
 
 hdrl_parameter*
-Strehl::ptr()
+Strehl::ptr() const
 {
   return m_interface;
 }

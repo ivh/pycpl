@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,9 +40,10 @@ class ImageList
   ImageList();
   ImageList(hdrl_imagelist* to_steal);
   ImageList(pycpl_imagelist l1, pycpl_imagelist l2);
-  ImageList(const ImageList& other)
-      : m_interface(Error::throw_errors_with(hdrl_imagelist_duplicate,
-                                             other.m_interface)) {};
+  ImageList(const ImageList& other);
+  ImageList(ImageList&& other) noexcept;
+  ImageList& operator=(const ImageList& other);
+  ImageList& operator=(ImageList&& other) noexcept;
   ~ImageList();
   std::shared_ptr<Image> operator[](int index) const;
 

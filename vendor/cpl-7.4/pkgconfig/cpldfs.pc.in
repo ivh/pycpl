@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+Name: cpldfs
+Description: CPL library (cpldfs component library)
+URL: https://www.eso.org/sci/software/cpl 
+Version: @VERSION@
+Requires: cplui = @VERSION@, cplcore = @VERSION@
+Requires.private: cext >= 1.2.4
+Libs: -L${libdir} -lcpldfs
+Libs.private: @LIBS@ -lm -pthread
+Cflags: -I${includedir}

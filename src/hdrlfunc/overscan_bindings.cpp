@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -121,8 +121,9 @@ bind_overscan(py::module& m)
                              "Contribution image from the last compute() call.")
       .def_property_readonly("chi2", &Overscan::get_chi2,
                              "Chi^2 image from the last compute() call.")
-      .def_property_readonly("red_chi2", &Overscan::get_red_chi2,
-                             "Reduced chi^2 image from the last compute() call.")
+      .def_property_readonly(
+          "red_chi2", &Overscan::get_red_chi2,
+          "Reduced chi^2 image from the last compute() call.")
       .def_property_readonly(
           "sigclip_reject_low", &Overscan::get_sigclip_reject_low,
           "Sigma-clip low rejection map from the last compute() call.")

@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -171,7 +171,7 @@ bind_errors(py::module& m)
       }))
       .def_property_readonly("trace", &cpl::core::Error::trace)
       .def_property_readonly("last", &cpl::core::Error::last)
-      .def("__eq__", &cpl::core::ErrorFrame::operator==)
+      .def("__eq__", &cpl::core::Error::operator==)
       .def("__eq__",
            [](cpl::core::Error& /* self */, py::object /* other */) -> bool {
              return false;

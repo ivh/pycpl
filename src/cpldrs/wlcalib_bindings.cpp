@@ -1,5 +1,5 @@
 // This file is part of PyCPL the ESO CPL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2020-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 void
 bind_wlcalib(py::module& m)
 {
-  py::module wlcalib =
+  py::module_ wlcalib =
       m.def_submodule("wlcalib", "Wavelength calibration functions");
 
   py::class_<cpl::drs::SlitModel, std::shared_ptr<cpl::drs::SlitModel>>

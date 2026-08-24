@@ -21,13 +21,13 @@ vendor/
 ├── wcslib-8.2.2/       # World Coordinate System transformations
 ├── gsl-2.8/            # GNU Scientific Library (for HDRL)
 ├── erfa-2.0.1/         # Essential Routines for Fundamental Astronomy (for HDRL)
-├── cpl-7.3.2/          # ESO Common Pipeline Library
+├── cpl-7.4/            # ESO Common Pipeline Library
 │   ├── libcext/        # CPL extension library
 │   ├── cplcore/        # Core CPL functionality
 │   ├── cplui/          # User interface components
 │   ├── cpldfs/         # Data flow system
 │   └── cpldrs/         # Data reduction system
-└── hdrl-1.6.0a/        # ESO High-level Data Reduction Library
+└── hdrl-1.6.0a5/       # ESO High-level Data Reduction Library
 ```
 
 **Why vendored?** CPL and its dependencies are not available via system package managers on all platforms, and version compatibility is critical.
@@ -321,7 +321,24 @@ When ESO releases new versions:
 
 **pycpl.cpp**: Small file with module init code, manual merge if needed.
 
-**Note**: HDRL's libcurl dependency (hdrl_download.c) is not required - no HDRL algorithm uses it internally and PyHDRL doesn't bind it.
+**Upstream sources**: https://ftp.eso.org/pub/dfs/pipelines/libraries/{pycpl,pyhdrl,cpl,hdrl}/
+
+Apart from the renames above and `pycpl.cpp`, `src/` is pristine upstream — verify with a
+diff ignoring the copyright-year line, which upstream bumps on every file each release.
+
+**New CPL/HDRL C libraries**: PyCPL/PyHDRL state their minimum in their `README.md`
+(e.g. PyCPL 1.0.4 needs cpl >= 7.4). Update the two paths in `setup.py`
+(`_build_cpl`, `_build_hdrl`). Vendored trees are pruned to keep the repo small:
+drop `html/` + `ChangeLog` (CPL) and `tests/` + `doxygen/` (HDRL).
+
+**HDRL is patched to drop libcurl** — re-apply on every HDRL upgrade:
+1. `hdrl_download.c` replaced by a stub returning `CPL_ERROR_UNSUPPORTED_MODE`
+   (keep the old copy; the two declarations in `hdrl_download.h` rarely change).
+2. `configure.ac`: comment out `ESO_CHECK_LIBCURL`, drop `tests/Makefile` and
+   `catalogue/tests/Makefile` from `AC_CONFIG_FILES`.
+3. `Makefile.am`: `SUBDIRS = catalogue .`, and remove `$(LIBCURL_CFLAGS)`/`$(LIBCURL_LIBS)`.
+4. Run `autoreconf -i` in the vendored tree and commit the generated files — `setup.py`
+   only regenerates them when `configure` is absent.
 
 ## References
 

@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -70,10 +70,54 @@ ImageList::ImageList(pycpl_imagelist il1, pycpl_imagelist il2)
   }
 }
 
+ImageList::ImageList(const ImageList& other)
+{
+  m_interface =
+      Error::throw_errors_with(hdrl_imagelist_duplicate, other.m_interface);
+  m_images = other.m_images;
+}
+
+ImageList::ImageList(ImageList&& other) noexcept
+    : m_images(std::move(other.m_images)), m_interface(other.m_interface)
+{
+  other.m_interface = nullptr;
+}
+
+ImageList&
+ImageList::operator=(const ImageList& other)
+{
+  if (this != &other) {
+    hdrl_imagelist* duplicated =
+        Error::throw_errors_with(hdrl_imagelist_duplicate, other.m_interface);
+    if (m_interface) {
+      Error::throw_errors_with(hdrl_imagelist_unwrap, m_interface);
+    }
+    m_interface = duplicated;
+    m_images = other.m_images;
+  }
+  return *this;
+}
+
+ImageList&
+ImageList::operator=(ImageList&& other) noexcept
+{
+  if (this != &other) {
+    if (m_interface) {
+      Error::throw_errors_with(hdrl_imagelist_unwrap, m_interface);
+    }
+    m_interface = other.m_interface;
+    m_images = std::move(other.m_images);
+    other.m_interface = nullptr;
+  }
+  return *this;
+}
+
 ImageList::~ImageList()
 {
-  // TODO: might we use hdrl_imagelist_unwrap here?
-  Error::throw_errors_with(hdrl_imagelist_unwrap, m_interface);
+  if (m_interface) {
+    // TODO: might we use hdrl_imagelist_unwrap here?
+    Error::throw_errors_with(hdrl_imagelist_unwrap, m_interface);
+  }
 }
 
 std::shared_ptr<Image>

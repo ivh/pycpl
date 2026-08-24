@@ -1,5 +1,5 @@
 // This file is part of the PyHDRL Python language bindings
-// Copyright (C) 2020-2024 European Southern Observatory
+// Copyright (C) 2023-2026 European Southern Observatory
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,6 +29,14 @@ namespace hdrl
 namespace func
 {
 
+using hdrl::core::Image;
+using hdrl::core::ImageList;
+using hdrl::core::pycpl_image;
+using hdrl::core::pycpl_imagelist;
+using hdrl::core::pycpl_mask;
+using hdrl::core::pycpl_table;
+using hdrl::func::Collapse;
+
 Fringe::Fringe()
 {
   // No initialization needed for fringe functions
@@ -36,7 +44,7 @@ Fringe::Fringe()
 
 void
 Fringe::compute(std::shared_ptr<ImageList> ilist_fringe,
-                hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
+                pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
                 Collapse collapse_params)
 {
   hdrl_image* master;
@@ -66,13 +74,13 @@ Fringe::compute(std::shared_ptr<ImageList> ilist_fringe,
   );
 
   m_master = std::make_shared<Image>(Image(master));
-  m_contrib_map = hdrl::core::pycpl_image(contrib_map);
-  m_qctable = hdrl::core::pycpl_table(qctable);
+  m_contrib_map = pycpl_image(contrib_map);
+  m_qctable = pycpl_table(qctable);
 }
 
 Fringe::CorrectResult
 Fringe::correct(std::shared_ptr<ImageList> ilist_fringe,
-                hdrl::core::pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
+                pycpl_imagelist ilist_obj, pycpl_mask stat_mask,
                 std::shared_ptr<Image> masterfringe)
 {
   cpl_table* qctable;
@@ -104,7 +112,7 @@ Fringe::correct(std::shared_ptr<ImageList> ilist_fringe,
   );
 
   // Create the result struct
-  CorrectResult result = {hdrl::core::pycpl_table(qctable)};
+  CorrectResult result = {pycpl_table(qctable)};
 
   return result;
 }
@@ -113,8 +121,9 @@ void
 Fringe::ensure_compute() const
 {
   if (!m_master) {
-    throw hdrl::core::NullInputError(HDRL_ERROR_LOCATION,
-                                     "Fringe results not available. Call compute() first.");
+    throw hdrl::core::NullInputError(
+        HDRL_ERROR_LOCATION,
+        "Fringe results not available. Call compute() first.");
   }
 }
 
@@ -125,14 +134,14 @@ Fringe::get_master() const
   return m_master;
 }
 
-hdrl::core::pycpl_image
+pycpl_image
 Fringe::get_contrib_map() const
 {
   ensure_compute();
   return m_contrib_map;
 }
 
-hdrl::core::pycpl_table
+pycpl_table
 Fringe::get_qctable() const
 {
   ensure_compute();
