@@ -1,0 +1,108 @@
+ChangeLog for HDRL (High-level Data Reduction Library)
+======================================================
+
+The entries below summarize notable changes per release.
+Dates are in GNU format (YYYY-MM-DD).
+
+2026-03-01  The HDRL Team
+
+	* Resampling: Fixed PIPE-12792 bug where rotated WCS (with
+	  significant off-diagonal CD matrix terms) caused unreasonably
+	  large output grid dimensions and memory allocation failures.
+	  The fix automatically corrects pixel scale values (delta_ra/
+	  delta_dec) when they are incorrectly extracted using only
+	  diagonal CD matrix elements, ensuring proper computation
+	  accounting for rotation.
+	* Barycentric correction: wavelength shift to compensate for
+	  observer motion with respect to the solar system barycenter;
+	  implementation uses the ERFA library (IAU SOFA-derived).
+	* Build system: GSL added as direct dependency for unit tests
+	  (limiting magnitude module); ERFA and libcurl added as
+	  dependencies for barycentric correction and related functionality.
+
+2021-09-30  The HDRL Team
+
+	* Limiting magnitude: computation as defined in the ESO Phase 3
+	  Standard (magnitude of an unresolved source with flux 5 times
+	  the noise background).
+	* Statistics: added mode of a distribution for collapsing
+	  imagelists and image statistics; error from data via analytic
+	  or bootstrap Monte Carlo; mean, weighted mean, min-max
+	  rejected mean, kappa-sigma clipped mean, median, mode now
+	  supported.
+	* API: hdrl_overscan_parameter_create_parlist() and
+	  hdrl_collapse_parameter_create_parlist() now require an
+	  additional default mode parameter.
+
+2021-02-12  The HDRL Team
+
+	* Resampling: 2D images and 3D cubes onto a common grid; six
+	  interpolation methods (Nearest, Linear, Quadratic, Renka,
+	  Drizzle, Lanczos).
+	* Catalogue: pixels with value exactly 0 no longer automatically
+	  added to the confidence map as bad; behaviour removed for
+	  clearer control.
+
+2018-10-01  The HDRL Team
+
+	* Fixed pattern noise: detection via power spectrum (e.g. pick
+	  noise, quasi-periodic patterns).
+	* Documentation: corrected description of Strehl ratio variables
+	  m1_radius and m2_radius (code was already correct).
+	* Spectral efficiency: fixed sign error in atmospheric
+	  correction (equation and code).
+
+2018-04-01  The HDRL Team
+
+	* Strehl ratio: computation for AO-assisted instrumentation
+	  quality control (peak intensity vs diffraction-limited).
+	* Spectral efficiency: as a function of wavelength from flux
+	  standard stars vs reference spectrum.
+	* Spectral response: telluric correction (optional) and response
+	  calculation as a function of wavelength.
+	* Differential atmospheric refraction: Filippenko (1982) algorithm
+	  with Owens formula for water vapour pressure.
+	* Effective air mass computation.
+
+2017-04-01  The HDRL Team
+
+	* Object catalogue generation: astrometric and photometric
+	  calibration; local sky background estimation, object/blend
+	  detection (Irwin 1985), parametrisation (astrometry,
+	  photometry, shape analysis).
+
+2015-11-26  The HDRL Team
+
+	* Fringe correction: master-fringe image via Gaussian mixture
+	  model; scaled master used to remove fringes from single images.
+
+2015-05-01  The HDRL Team
+
+	* Master flatfield: algorithms to derive master flatfield.
+	* Strehl ratio: initial implementation.
+
+2014-12-15  The HDRL Team
+
+	* Clipping: sigma clipping now uses scaled Median Absolute
+	  Deviation (MAD) instead of interquartile range (IQR) for
+	  robust RMS; better for low-number statistics and high
+	  fraction of affected pixels (e.g. cosmic rays).
+	* Library integration: pipeline integration details updated
+	  in documentation.
+
+2014-09-17  The HDRL Team
+
+	* Bad pixel detection: various methods for bad pixel detection
+	  (see bad-pixel module documentation).
+
+2013-11-29  The HDRL Team
+
+	* First prototype release of the HDRL library.
+
+2013-08-09  The HDRL Team
+
+	* Master bias and master dark computation and handling.
+
+2013-04-26  The HDRL Team
+
+	* Overscan computation and correction.

@@ -331,6 +331,25 @@ diff ignoring the copyright-year line, which upstream bumps on every file each r
 (`_build_cpl`, `_build_hdrl`). Vendored trees are pruned to keep the repo small:
 drop `html/` + `ChangeLog` (CPL) and `tests/` + `doxygen/` (HDRL).
 
+**CPL >= 7.4 defaults `--with-system-cext` to `yes`** and then hard-fails with
+"libcext (headers) was not found" when no system libcext exists (7.3.2 defaulted to `no`).
+`setup.py` passes `--with-system-cext=no` to force the bundled one. Beware: a stale
+`cext.pc` left in `build/` from an earlier release satisfies the pkg-config probe, so a
+local incremental build can succeed while CI fails — always `rm -rf build` before trusting
+a vendor upgrade.
+
+**Vendored trees must be committed whole.** Root `.gitignore` rules (`**/doc/`,
+`ChangeLog`) silently excluded upstream files that autotools needs, so the build worked
+locally but failed on a fresh CI checkout (HDRL's automake is GNU-strict and needs
+`ChangeLog`; its configure generates `doc/Doxyfile`). `.gitignore` now carries
+`!vendor/**/ChangeLog` and `!vendor/**/doc/`. After any vendor swap, verify nothing is
+hidden:
+
+```bash
+git status --ignored --short vendor/ | grep '^!!'          # expect only build scratch
+diff <(find vendor/<tree> -type f | sort) <(git ls-files vendor/<tree>)
+```
+
 **HDRL is patched to drop libcurl** — re-apply on every HDRL upgrade:
 1. `hdrl_download.c` replaced by a stub returning `CPL_ERROR_UNSUPPORTED_MODE`
    (keep the old copy; the two declarations in `hdrl_download.h` rarely change).

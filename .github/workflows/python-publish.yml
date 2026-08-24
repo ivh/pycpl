@@ -11,6 +11,8 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # one platform failing should not hide the state of the other three
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-22.04-arm, macos-latest, macos-15-intel]
 

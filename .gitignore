@@ -110,3 +110,7 @@ ChangeLog
 CHANGES
 *.log
 wheels-*
+
+# vendored upstream trees must be committed whole; root rules above must not hide them
+!vendor/**/ChangeLog
+!vendor/**/doc/

@@ -359,6 +359,8 @@ Cflags: -I${{includedir}}
             "--disable-static",
             "--enable-shared",
             "--disable-java",
+            # CPL 7.4 defaults --with-system-cext to yes; we always want the bundled one
+            "--with-system-cext=no",
         ], cwd=src_dir, env=env, check=True)
 
         subprocess.run(["make", f"-j{njobs}"], cwd=src_dir, check=True)

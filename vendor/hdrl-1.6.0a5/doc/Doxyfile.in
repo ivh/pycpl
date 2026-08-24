@@ -1,0 +1,43 @@
+#
+# Doxygen configuration file for the HDRL library
+#
+
+PROJECT_NAME           = "High-Level Data Reduction Library"
+PROJECT_NUMBER         = @PACKAGE_VERSION@
+PROJECT_BRIEF          = "High-Level data reduction routines for ESO pipelines"
+
+OUTPUT_DIRECTORY       = doxygen
+CREATE_SUBDIRS         = NO
+
+OUTPUT_LANGUAGE        = English
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+
+# Source tree and build dir (.) so out-of-source finds sources and generated headers
+INPUT                  = @HDRL_TOP_SRCDIR@ .
+FILE_PATTERNS          = hdrl*.h hdrl*.c
+RECURSIVE              = YES
+
+STRIP_FROM_PATH        = @HDRL_TOP_SRCDIR@ .
+
+IMAGE_PATH             = @HDRL_DOXYGEN_IMAGE_PATH@
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+SHORT_NAMES            = YES
+
+# Exclude the dist directory created during 'make dist' / 'distcheck'
+EXCLUDE                = hdrl-@PACKAGE_VERSION@
+
+GENERATE_LATEX         = NO
+
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+
+GENERATE_TREEVIEW      = YES
+
