@@ -27,6 +27,21 @@ jobs:
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel>=3.1.0
 
+      # The vendored C libraries only change when a vendor/ tree is swapped or the
+      # build recipe changes, so key the cache on exactly those two things.
+      - name: Compute vendored-deps cache key
+        id: depskey
+        run: |
+          v=$(ls -1 vendor | sort | shasum -a 256 | cut -c1-16)
+          s=$(shasum -a 256 setup.py | cut -c1-16)
+          echo "key=$v-$s" >> "$GITHUB_OUTPUT"
+
+      - name: Cache vendored C libraries
+        uses: actions/cache@v4
+        with:
+          path: build/deps-*
+          key: deps-${{ matrix.os }}-${{ steps.depskey.outputs.key }}
+
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
 

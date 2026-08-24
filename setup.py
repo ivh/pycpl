@@ -18,6 +18,7 @@ import os
 import sys
 import subprocess
 import multiprocessing
+import sysconfig
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -25,6 +26,10 @@ import pybind11
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+
+
+# Bump when the dependency build itself changes in a way that invalidates old trees
+DEPS_STAMP_SCHEMA = "deps-v1"
 
 
 class CMakeExtension(Extension):
@@ -55,6 +60,21 @@ class CMakeBuildExt(build_ext):
         for ext in self.extensions:
             self.build_extension(ext)
 
+    def _deps_dir(self) -> Path:
+        """Directory for the vendored C libraries.
+
+        Deliberately keyed on the platform rather than the interpreter: these
+        libraries have no Python linkage, so all of cp312/cp313/cp314 share one
+        build instead of repeating it three times per CI run.
+        """
+        return Path(self.build_temp).resolve().parent / f"deps-{sysconfig.get_platform()}"
+
+    def _deps_stamp_value(self) -> str:
+        """Identity of the current vendored sources; a change forces a rebuild."""
+        vendor_dir = Path(__file__).parent.resolve() / "vendor"
+        trees = sorted(p.name for p in vendor_dir.iterdir() if p.is_dir())
+        return "\n".join([DEPS_STAMP_SCHEMA, *trees])
+
     def build_dependencies(self) -> None:
         """Build vendored C libraries: cfitsio, fftw, wcslib, cpl, gsl, erfa, and hdrl"""
         print("=" * 60)
@@ -65,13 +85,22 @@ class CMakeBuildExt(build_ext):
         source_dir = Path(__file__).parent.resolve()
         vendor_dir = source_dir / "vendor"
 
-        # Create build directory for dependencies
-        deps_build_dir = Path(self.build_temp).resolve() / "deps"
+        # Create build directory for dependencies (shared across Python versions)
+        deps_build_dir = self._deps_dir()
         deps_build_dir.mkdir(parents=True, exist_ok=True)
 
         # Installation prefix for dependencies
         deps_install_dir = deps_build_dir / "install"
         deps_install_dir.mkdir(parents=True, exist_ok=True)
+
+        stamp = deps_build_dir / ".deps-complete"
+        want = self._deps_stamp_value()
+        if stamp.is_file() and stamp.read_text() == want:
+            print(f">>> Reusing vendored C libraries from {deps_install_dir}")
+            os.environ["CPLDIR"] = str(deps_install_dir)
+            os.environ["HDRLDIR"] = str(deps_install_dir)
+            print("=" * 60)
+            return
 
         # Number of parallel jobs
         njobs = os.environ.get("CMAKE_BUILD_PARALLEL_LEVEL") or str(multiprocessing.cpu_count())
@@ -110,6 +139,8 @@ class CMakeBuildExt(build_ext):
         # Phase 4: Build hdrl (depends on cpl, gsl, erfa)
         print("\n>>> Phase 4: Building hdrl...")
         self._build_hdrl(vendor_dir, deps_build_dir, deps_install_dir, njobs)
+
+        stamp.write_text(want)
 
         # Set CPLDIR environment variable so FindCPL.cmake can find it
         os.environ["CPLDIR"] = str(deps_install_dir)
@@ -581,7 +612,7 @@ Cflags: -I${{includedir}}
         import shutil
         import glob
 
-        deps_install_dir = Path(self.build_temp).resolve() / "deps" / "install"
+        deps_install_dir = self._deps_dir() / "install"
         lib_dir = deps_install_dir / "lib"
 
         if not lib_dir.exists():

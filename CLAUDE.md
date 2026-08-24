@@ -78,6 +78,15 @@ BUILD_WITH_INSTALL_RPATH TRUE
 - Linux: `$ORIGIN` = look in same directory as .so
 - macOS: `@loader_path` = macOS equivalent
 
+**Vendored deps are shared across Python versions.** They are built into
+`build/deps-<platform>/` (keyed on `sysconfig.get_platform()`, not the interpreter) and
+guarded by a `.deps-complete` stamp listing the `vendor/` tree names. cibuildwheel builds
+cp312/cp313/cp314 in one job, so the C stack is built once instead of three times — on the
+slow macos-15-intel runner that was ~14 min of the 54 min wall clock. Bump
+`DEPS_STAMP_SCHEMA` in `setup.py` if the dependency build changes in a way that old trees
+would not pick up. The workflow additionally caches `build/deps-*` between runs, keyed on
+the `vendor/` listing plus a hash of `setup.py`.
+
 **Python version:**
 ```cmake
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
