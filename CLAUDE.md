@@ -242,6 +242,20 @@ This allows pip/uv to find pycpl from our index while still using PyPI for depen
 
 **Solution:** `_fix_darwin_install_names()` uses `install_name_tool -id` and `-change`
 
+### Symbol not found on macOS, resolved against a system CPL
+
+**Symptom:** `ImportError: dlopen(...): Symbol not found: _cpl_wcs_duplicate`, with
+`Expected in: <somewhere>/lib/libcpldrs.26.dylib` pointing outside site-packages.
+
+**Cause:** `DYLD_LIBRARY_PATH` (set by ESO pipeline/`esorex` setups) is searched by
+library *leaf name* before the extension's `@rpath`, so a system CPL shadows the bundled
+libraries. Harmless while the versions match; fatal once they diverge (CPL 7.4 added
+`cpl_wcs_duplicate`). Linux is immune because `--disable-new-dtags` yields `DT_RPATH`,
+which is searched before `LD_LIBRARY_PATH`.
+
+**Solution:** run with `env -u DYLD_LIBRARY_PATH`. A permanent fix would require giving
+the bundled dylibs unique leaf names so they cannot be shadowed.
+
 ### CMake can't find Python3_LIBRARIES (manylinux)
 
 **Symptom:** `Could NOT find Python3 (missing: Python3_LIBRARIES Development)`

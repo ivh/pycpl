@@ -18,6 +18,13 @@ A few things to note:
 * There is also the script [`pyhdrl_demo.py`](https://raw.githubusercontent.com/ivh/pycpl/refs/heads/master/pyhdrl_demo.py) that you can download alone, and simply run with `uv run pyhdrl_demo.py`. It should find this package and use it.
 * I chose the package version number the same as ESO's, but appending *.postNN* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, use only their index and/or install the fixed version number like *pycpl==1.0.3* .
 * **Version 1.0.4.post2 upgrades PyHDRL from 0.2.0 to 1.0.0, which changes the HDRL API.** `hdrl.core.Parameter` was removed, `hdrl.core.Spectrum1D`/`Spectrum1DList` were refactored, and `hdrl.func.Efficiency`/`Response` now take specific parameter types (`EfficiencyParameter`, `ResponseFitParameter`, ...) instead of the opaque `Parameter`. See ESO's [PyHDRL changelog](https://ftp.eso.org/pub/dfs/pipelines/libraries/pyhdrl/). This release also moves the bundled C libraries to CPL 7.4 and HDRL 1.6.0a5, as required by PyCPL 1.0.4.
+* **macOS: if you have ESO pipelines installed, unset `DYLD_LIBRARY_PATH` when using this package.** An import failing with e.g. `Symbol not found: _cpl_wcs_duplicate ... Expected in: <your CPL>/lib/libcpldrs.26.dylib` means macOS loaded your *system* CPL instead of the bundled one: `DYLD_LIBRARY_PATH` (set by the usual `CPLDIR` setup for `esorex`) is searched by library filename before the wheel's own `@rpath`, so the bundled libraries get shadowed. Run the command with the variable cleared:
+
+```
+env -u DYLD_LIBRARY_PATH uv run yourscript.py
+```
+
+  Linux is unaffected — the wheels use `DT_RPATH`, which wins over `LD_LIBRARY_PATH`.
 * The installation instructions below do not apply to this package. Instead do `(uv) pip install pycpl --extra-index-url https://ivh.github.io/pycpl/simple/` or add the URL to your *pyproject.toml*. Like this, `uv sync` will install *pycpl* from here and *pyesorex* and *edps* from ESO, having them use the bundled pycpl:
 
 ```
