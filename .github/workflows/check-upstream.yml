@@ -33,8 +33,16 @@ jobs:
 
           if [ -s "$body_file" ]; then
             if [ -n "$existing" ]; then
-              echo "updating issue #$existing"
-              gh issue edit "$existing" --body-file "$body_file"
+              # Editing a body sends no notification, so only touch the issue when
+              # the findings actually changed, and comment so watchers hear about it.
+              gh issue view "$existing" --json body --jq .body > "$RUNNER_TEMP/old.md"
+              if cmp -s "$RUNNER_TEMP/old.md" "$body_file"; then
+                echo "issue #$existing already up to date"
+              else
+                echo "findings changed; updating issue #$existing"
+                gh issue edit "$existing" --body-file "$body_file"
+                gh issue comment "$existing" --body "Upstream findings changed — see the updated issue body."
+              fi
             else
               echo "opening new issue"
               gh issue create --title "$TITLE" --body-file "$body_file"
