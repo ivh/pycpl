@@ -5,7 +5,7 @@
 In contrast to the ESO's own package, which is available from [their own index](https://ftp.eso.org/pub/dfs/pipelines/libraries/) but not from PyPI, this one comes with the necessary C-libraries (CPL, cfitsio, wcslib, fftw) included, so they don't have to be installed separately. It is served from [our own index](https://ivh.github.io/pycpl/simple/) — see below on how to use it.
 
 As of January 2026 this package also contains
-[pyHDRL](https://www.eso.org/sci/software/pycpl/pyhdrl-site/index.html),
+[pyHDRL](https://www.eso.org/sci/software/pyhdrl/pyhdrl-site/index.html),
 including pre-built HDRL and its dependencies.
 
 A few things to note:
