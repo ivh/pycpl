@@ -27,7 +27,7 @@ vendor/
 │   ├── cplui/          # User interface components
 │   ├── cpldfs/         # Data flow system
 │   └── cpldrs/         # Data reduction system
-└── hdrl-1.6.0a5/       # ESO High-level Data Reduction Library
+└── hdrl-1.6.0/         # ESO High-level Data Reduction Library
 ```
 
 **Why vendored?** CPL and its dependencies are not available via system package managers on all platforms, and version compatibility is critical.

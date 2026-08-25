@@ -17,20 +17,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <cpl_test.h>
 
 #include "../hdrl_cat_apio.h"
 #include "../hdrl_cat_areals.h"
-#include "../hdrl_cat_moments.h"
-#include "../hdrl_cat_terminate.h"
 
 
-#define NT  117
+#define NT 117
 
 
 int main(void)
 {
-    cpl_test_init(PACKAGE_BUGREPORT, CPL_MSG_WARNING);
+    cpl_test_init(PACKAGE_BUGREPORT,CPL_MSG_WARNING);
 
     cpl_size x[] = {398,399,400,397,398,399,400,401,402,403,396,397,398,399,400,
                     401,402,403,404,395,396,397,398,399,400,401,402,403,404,405,
@@ -50,7 +52,7 @@ int main(void)
                     403,403,403,403,403,403,403,404,404,404,404,404,404,404,404,
                     404,405,405,405,405,405,405,405,406,406,406,406};
 
-    double  z[] =  {8.87152,12.515,7.69699,10.8527,22.2509,21.7368,13.0388,
+    double   z[] = {8.87152,12.515,7.69699,10.8527,22.2509,21.7368,13.0388,
                     12.1853,17.1976,7.43948,15.2245,29.1964,37.9117,57.9371,
                     71.5542,57.1288,34.7726,15.5934,11.5374,15.995,21.3606,
                     60.4006,103.46,147.55,168.274,147.476,98.9157,51.7186,20.188,
@@ -71,16 +73,11 @@ int main(void)
     ap_t ap;
     ap.lsiz     = 2048;
     ap.csiz     = 2048;
-    ap.thresh   = 11.0936;
-    ap.inframe  = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
-    ap.conframe = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
+    ap.inframe  = NULL;
+    ap.conframe = NULL;
 
     /* Initialize */
     hdrl_apinit(&ap);
-    ap.maxip        = 100;
-    ap.ipnop        = 2;
-    ap.areal_offset = 1.5;
-    ap.multiply     = 1;
 
     ap.npl_pix = NT;
     ap.plarray = cpl_realloc(ap.plarray, NT * sizeof(*ap.plarray));
@@ -92,41 +89,26 @@ int main(void)
     }
 
     ap.xintmin      = 0.;
-    ap.areal_offset = 3.56;
-    ap.thresh       = 15.;
-    ap.fconst       = 1.4;
+    ap.areal_offset = 3.47165;
+    ap.thresh       = 11.0936;
+    ap.fconst       = 1.4427;
 
     /* Run the test */
     cpl_size iareal[NAREAL];
     hdrl_areals(&ap, iareal);
 
-    ap.indata   = cpl_image_get_data_double(ap.inframe);
-    ap.confdata = cpl_image_get_data_double(ap.conframe);
-    ap.mflag    = cpl_calloc(2048 * 2048, sizeof(*ap.mflag));
-
-    /* Create a source */
-	double tmax = 1000.;
-	cpl_image_fill_gaussian(ap.inframe,  2048, 2048, tmax,  10.,  10.);
-	cpl_image_fill_gaussian(ap.conframe, 2048, 2048, tmax, 100., 100.);
-
-    /* Do a basic moments analysis and work out the areal profiles*/
-    double momresults[8];
-    hdrl_moments(&ap, momresults);
-
-    /* Test 1 */
-    ap.parent[1].pnop    = 0;
-    ap.parent[1].first   = 0;
-    ap.parent[1].last    = 0;
-    ap.parent[1].growing = 0;
-    ap.parent[1].touch   = 0;
-    ap.parent[1].pnbp    = 0;
-    hdrl_apfu(&ap);
-
+    cpl_test_eq(iareal[0], 104);
+    cpl_test_eq(iareal[1],  75);
+    cpl_test_eq(iareal[2],  63);
+    cpl_test_eq(iareal[3],  45);
+    cpl_test_eq(iareal[4],  25);
+    cpl_test_eq(iareal[5],   9);
+    cpl_test_eq(iareal[6],   0);
+    cpl_test_eq(iareal[7],   0);
+        
     /* Clean up */
     hdrl_apclose(&ap);
-    cpl_free(ap.mflag);
-    cpl_image_delete(ap.inframe);
-    cpl_image_delete(ap.conframe);
+
 
     return cpl_test_end(0);
 }

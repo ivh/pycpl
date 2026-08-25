@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([HDRL Pipeline],[1.6.0a5],[https://support.eso.org],[hdrl])
+AC_INIT([HDRL Pipeline],[1.6.0],[https://support.eso.org],[hdrl])
 AC_PREREQ([2.59])
 
 AC_CONFIG_SRCDIR([Makefile.am])

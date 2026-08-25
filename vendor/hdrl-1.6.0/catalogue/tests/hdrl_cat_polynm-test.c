@@ -17,53 +17,34 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <cpl_test.h>
 
-#include "../hdrl_cat_filter.h"
-
-
-#define NUM 100
+#include "../hdrl_cat_polynm.h"
 
 
 int main(void)
 {
-    cpl_test_init(PACKAGE_BUGREPORT, CPL_MSG_WARNING);
+	cpl_test_init(PACKAGE_BUGREPORT,CPL_MSG_WARNING);
 
-    /* Test 1 */
-    double x1[NUM];
-    for (cpl_size i = 0; i < NUM; i++) {
-        x1[i] = 0.;
-    }
-    padext(x1, NUM);
 
-    /* Test 2 */
-    double x2[NUM];
-    for (cpl_size i = 0; i < NUM; i++) {
-    	if (i < NUM / 2) {
-    		x2[i] = -2000.;
-    	} else {
-    		x2[i] = 0.;
-    	}
-    }
-    padext(x2, NUM);
+	/* Initialize */
+    double x[] = { 1. ,   3. ,   5. ,  -10.};
+    double y[] = {-0.5, -27.5, -86.5, -424.};
 
-    /* Test 3 */
-    double x3[NUM];
-    for (cpl_size i = 0; i < NUM; i++) {
-    	if (i < NUM / 2) {
-    		x3[i] = 0.;
-    	} else {
-    		x3[i] = -2000.;
-    	}
-    }
-    padext(x3, NUM);
+    double coefs[3] = {1., 2.5, -4.};
+    double poly[3];
 
-    /* Test 4 */
-    double x4[NUM];
-    for (cpl_size i = 0; i < NUM; i++) {
-    	x4[i] = -2000.;
-    }
-    padext(x4, NUM);
+    /* Do the test */
+    hdrl_polynm(y, x, 4, poly, 3, 0);
+
+    /* Check the results */
+    cpl_test_rel(poly[0], coefs[0], 0.01);
+    cpl_test_rel(poly[1], coefs[1], 0.01);
+    cpl_test_rel(poly[2], coefs[2], 0.01);
 
 
     return cpl_test_end(0);

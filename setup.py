@@ -499,7 +499,7 @@ Cflags: -I${{includedir}}
     def _build_hdrl(self, vendor_dir: Path, build_dir: Path, install_dir: Path, njobs: str) -> None:
         """Build HDRL library"""
         print("\n>>> Building HDRL...")
-        src_dir = vendor_dir / "hdrl-1.6.0a5"
+        src_dir = vendor_dir / "hdrl-1.6.0"
 
         env = os.environ.copy()
         env["PKG_CONFIG_PATH"] = str(install_dir / "lib" / "pkgconfig")

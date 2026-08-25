@@ -17,80 +17,69 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <cpl_test.h>
 
 #include "../hdrl_cat_apio.h"
-#include "../hdrl_cat_phopt.h"
+#include "../hdrl_cat_background.h"
 
 
 int main(void)
 {
-    cpl_test_init(PACKAGE_BUGREPORT, CPL_MSG_WARNING);
+    cpl_test_init(PACKAGE_BUGREPORT,CPL_MSG_WARNING);
 
-    /* Initialize */
-    double apertures[] = {2.5, 3.53553, 5.0, 7.07107, 10, 14, 20, 25, 30, 35, 40, 50, 60};
-
-
-    /* Set up apm structure */
+    /* Create an input apm structure */
     ap_t ap;
     ap.lsiz     = 2048;
     ap.csiz     = 2048;
-    ap.thresh   = 11.0936;
     ap.inframe  = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
     ap.conframe = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
-
 
     /* Initialize */
     hdrl_apinit(&ap);
 
     ap.indata   = cpl_image_get_data_double(ap.inframe);
     ap.confdata = cpl_image_get_data_double(ap.conframe);
-    ap.mflag    = cpl_calloc(2048 * 2048, sizeof(*ap.mflag));
+    ap.mflag    = cpl_malloc(ap.lsiz * ap.csiz * sizeof(*ap.mflag));
+
+    double null_value = -100.;
+    for (cpl_size i = 0; i < ap.lsiz * ap.csiz; i++) {
+    	ap.mflag[i] = null_value;
+    }
 
     /* Create a background */
     cpl_image_fill_noise_uniform(ap.inframe, -10., 10.);
     cpl_image_add_scalar(        ap.inframe,  5000.);
     cpl_image_fill_noise_uniform(ap.conframe, 99, 101);
 
+    /* Get the background value */
+    double skymed;
+    double skysig;
+    cpl_test_eq(hdrl_backstats(&ap, &skymed, &skysig), CPL_ERROR_NONE);
+    cpl_test_rel(skymed, 5000., 0.01);
+    cpl_test_rel(skysig, 20 / sqrt(12), 0.1);
 
-    double parm[IMNUM][NPAR];
-    for (cpl_size i = 0; i < IMNUM; i++) {
-    	for (cpl_size j = 0; j < NPAR; j++) {
-    		parm[i][j] = i + j;
-    	}
+    /* Create a background map */
+    hdrl_casu_result *res = cpl_malloc(sizeof(hdrl_casu_result));
+    res->background = cpl_image_new(ap.lsiz, ap.csiz, CPL_TYPE_DOUBLE);
+    cpl_test_eq(hdrl_background(&ap, 64, 1, res), CPL_ERROR_NONE);
+
+    for (cpl_size j = 0; j < ap.backmap.nby; j++) {
+        for (cpl_size i = 0; i < ap.backmap.nbx; i++) {
+            cpl_test_rel((ap.backmap.bvals)[i][j], 5000., 0.01);
+        }
     }
+    cpl_test_rel(cpl_image_get_median(ap.inframe), 5000., 0.1);
 
-    /* Reserve memory for the fluxes */
-    double cflux[NRADS * IMNUM];
-
-    /* InitialiZe the badpix accumulator */
-    double badpix[IMNUM];
-    double avconf[IMNUM];
-
-    cpl_size nrcore = 2;
-
-    /*** TESTS ***/
-    cpl_size       nbit;
-    cpl_error_code e;
-
-    /* Test 1 */
-    nbit = 1;
-    for (cpl_size i = 0; i < nbit; i++) {
-        badpix[i] = 0.;
-        avconf[i] = 0.;
-    }
-    e = hdrl_phopt(&ap, parm, nbit, NRADS, apertures, cflux, badpix, nrcore, avconf);
-    cpl_test_eq(e, CPL_ERROR_NONE);
-
-    /* Test 2 */
-    nbit = 2;
-    for (cpl_size i = 0; i < nbit; i++) {
-        badpix[i] = 0.;
-        avconf[i] = 0.;
-    }
-    e = hdrl_phopt(&ap, parm, nbit, NRADS, apertures, cflux, badpix, nrcore, avconf);
-    cpl_test_eq(e, CPL_ERROR_NONE);
-
+    /* TODO: Check results */
+    hdrl_backest(&ap, 1000., 1000., &skymed, &skysig);
+    cpl_test_rel(skymed, 5000., 0.01);
+    cpl_test_lt(0., skysig);
+    cpl_image_delete(res->background);
+    cpl_free(res);
 
     /* Clean up */
     hdrl_apclose(&ap);

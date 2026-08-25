@@ -17,26 +17,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <cpl_test.h>
 
 #include "../hdrl_cat_apio.h"
 #include "../hdrl_cat_areals.h"
 #include "../hdrl_cat_moments.h"
-#include "../hdrl_cat_radii.h"
-
-#define NT       117
-#define SIZE_IMG 64
+#include "../hdrl_cat_terminate.h"
 
 
-static double radii[]  = {2.5,3.53553,5.0,7.07107,10,14,20,25,30,35,40,50,60};
-
-static double fluxes[] = {13670.3, 19834.4, 23923.2, 25124.0, 25332.3, 25488.9,
-                          25648.7, 25842.8, 25950.9, 25893.9, 25982,1, 25297.6, 24919.1};
+#define NT  117
 
 
-void flux_test(cpl_boolean execute_test)
+int main(void)
 {
-	cpl_size x[] = {398,399,400,397,398,399,400,401,402,403,396,397,398,399,400,
+    cpl_test_init(PACKAGE_BUGREPORT, CPL_MSG_WARNING);
+
+    cpl_size x[] = {398,399,400,397,398,399,400,401,402,403,396,397,398,399,400,
                     401,402,403,404,395,396,397,398,399,400,401,402,403,404,405,
                     395,396,397,398,399,400,401,402,403,404,405,395,396,397,398,
                     399,400,401,402,403,404,405,395,396,397,398,399,400,401,402,
@@ -45,7 +45,7 @@ void flux_test(cpl_boolean execute_test)
                     399,400,401,402,403,404,405,396,397,398,399,400,401,402,403,
                     404,397,398,399,400,401,402,403,398,399,400,401};
 
-	cpl_size y[] = {394,394,394,395,395,395,395,395,395,395,396,396,396,396,396,
+    cpl_size y[] = {394,394,394,395,395,395,395,395,395,395,396,396,396,396,396,
                     396,396,396,396,397,397,397,397,397,397,397,397,397,397,397,
                     398,398,398,398,398,398,398,398,398,398,398,399,399,399,399,
                     399,399,399,399,399,399,399,400,400,400,400,400,400,400,400,
@@ -71,20 +71,23 @@ void flux_test(cpl_boolean execute_test)
                     16.7595,-0.37323,21.3832,19.2497,18.5883,9.37448,19.6048,
                     11.5006,13.0159,14.5852,13.66,-1.04889};
 
-
     /* Set up apm structure */
     ap_t ap;
-    ap.lsiz     = SIZE_IMG;
-    ap.csiz     = SIZE_IMG;
+    ap.lsiz     = 2048;
+    ap.csiz     = 2048;
     ap.thresh   = 11.0936;
-    ap.inframe  = cpl_image_new(SIZE_IMG, SIZE_IMG, CPL_TYPE_DOUBLE);
-    ap.conframe = cpl_image_new(SIZE_IMG, SIZE_IMG, CPL_TYPE_DOUBLE);
+    ap.inframe  = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
+    ap.conframe = cpl_image_new(2048, 2048, CPL_TYPE_DOUBLE);
 
     /* Initialize */
     hdrl_apinit(&ap);
+    ap.maxip        = 100;
+    ap.ipnop        = 2;
+    ap.areal_offset = 1.5;
+    ap.multiply     = 1;
 
     ap.npl_pix = NT;
-    ap.plarray = cpl_realloc(ap.plarray, NT * sizeof(plstruct));
+    ap.plarray = cpl_realloc(ap.plarray, NT * sizeof(*ap.plarray));
     for (cpl_size i = 0; i < NT; i++) {
         ap.plarray[i].x   = x[i];
         ap.plarray[i].y   = y[i];
@@ -93,9 +96,9 @@ void flux_test(cpl_boolean execute_test)
     }
 
     ap.xintmin      = 0.;
-    ap.areal_offset = 3.47165;
-    ap.thresh       = 11.0936;
-    ap.fconst       = 1.4427;
+    ap.areal_offset = 3.56;
+    ap.thresh       = 15.;
+    ap.fconst       = 1.4;
 
     /* Run the test */
     cpl_size iareal[NAREAL];
@@ -103,95 +106,31 @@ void flux_test(cpl_boolean execute_test)
 
     ap.indata   = cpl_image_get_data_double(ap.inframe);
     ap.confdata = cpl_image_get_data_double(ap.conframe);
-    ap.mflag    = cpl_calloc(SIZE_IMG * SIZE_IMG, sizeof(*ap.mflag));
+    ap.mflag    = cpl_calloc(2048 * 2048, sizeof(*ap.mflag));
 
-    /* Create a background */
-    cpl_image_fill_noise_uniform(ap.inframe, -10., 10.);
-    cpl_image_add_scalar(        ap.inframe,  5000.);
-    cpl_image_fill_noise_uniform(ap.conframe, 99, 101);
+    /* Create a source */
+	double tmax = 1000.;
+	cpl_image_fill_gaussian(ap.inframe,  2048, 2048, tmax,  10.,  10.);
+	cpl_image_fill_gaussian(ap.conframe, 2048, 2048, tmax, 100., 100.);
 
     /* Do a basic moments analysis and work out the areal profiles*/
     double momresults[8];
     hdrl_moments(&ap, momresults);
 
-	/* Try and deblend the images if it is requested and justified */
-	double parmall[IMNUM][NPAR];
-	cpl_size nbit = 10;
-	for (cpl_size i = 0; i < IMNUM; i++) {
-		for (cpl_size j = 0; j < NPAR; j++) {
-			parmall[i][j] = 0.;
-		}
-	}
-
-	/* Get Kron radius for all images and get the flux */
-	double areal;
-	double kron_rad[IMNUM];
-	for (cpl_size k = 0; k < nbit; k++) {
-		areal = parmall[k][8];
-		kron_rad[k] = hdrl_kronrad(areal, radii, fluxes, NRADS);
-	}
-	if (execute_test) {
-		double kron_flux[IMNUM];
-		hdrl_flux(&ap, parmall, nbit, kron_rad, kron_flux, NRADS, radii, fluxes);
-	}
-
-	/* Get Petrosian radius for all images and get the flux */
-	double petr_rad[IMNUM];
-	for (cpl_size k = 0; k < nbit; k++) {
-		areal = parmall[k][8];
-		petr_rad[k] = hdrl_petrad(areal, radii, fluxes, NRADS);
-	}
-	if (execute_test) {
-		double petr_flux[IMNUM];
-		hdrl_flux(&ap, parmall, nbit, petr_rad, petr_flux, NRADS, radii, fluxes);
-	}
+    /* Test 1 */
+    ap.parent[1].pnop    = 0;
+    ap.parent[1].first   = 0;
+    ap.parent[1].last    = 0;
+    ap.parent[1].growing = 0;
+    ap.parent[1].touch   = 0;
+    ap.parent[1].pnbp    = 0;
+    hdrl_apfu(&ap);
 
     /* Clean up */
     hdrl_apclose(&ap);
     cpl_free(ap.mflag);
     cpl_image_delete(ap.inframe);
     cpl_image_delete(ap.conframe);
-}
-
-int main(void) {
-
-    /* Initialize */
-    cpl_test_init(PACKAGE_BUGREPORT, CPL_MSG_WARNING);
-
-    double halfrad  = 2.35;
-    double exprad   = 6.18;
-    double kronrad  = 6.18;
-    double petrrad  = 12.45;
-    double peak     = 1007.07;
-    double areal    = 120.;
-
-    double halflight;
-    double thresh;
-    double rad;
-
-
-    /* Test halflight */
-    halflight = fluxes[4] / 2.;
-    rad = hdrl_halflight(radii, fluxes, halflight, peak, NRADS);
-    cpl_test_rel(rad, halfrad, 0.01);
-
-    /* Test exprad */
-    thresh = 4.;
-    rad = hdrl_exprad(thresh, peak, areal, radii, NRADS);
-    cpl_test_rel(rad, exprad, 0.01);
-
-    /* Test Kron */
-    rad = hdrl_kronrad(areal, radii, fluxes, NRADS);
-    cpl_test_rel(rad, kronrad, 0.01);
-
-    /* Test Petrosian */
-    rad = hdrl_petrad(areal, radii, fluxes, NRADS);
-    cpl_test_rel(rad, petrrad, 0.01);
-
-    /* Flux_test. TODO: Fail in Debian 6.0 [debug - i686] and Debian 7.0 [debug x86_64]
-     * Maybe for optiomization in the debug compiler mode for this machine.
-     * Activate the test when this will be solve */
-    flux_test(CPL_FALSE);
 
     return cpl_test_end(0);
 }

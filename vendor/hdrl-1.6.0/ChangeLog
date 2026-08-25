@@ -4,7 +4,7 @@ ChangeLog for HDRL (High-level Data Reduction Library)
 The entries below summarize notable changes per release.
 Dates are in GNU format (YYYY-MM-DD).
 
-2026-03-01  The HDRL Team
+2026-06-02  The HDRL Team
 
 	* Resampling: Fixed PIPE-12792 bug where rotated WCS (with
 	  significant off-diagonal CD matrix terms) caused unreasonably
