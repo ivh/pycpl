@@ -1,0 +1,47 @@
+name: Check ESO upstream
+
+on:
+  schedule:
+    # Mondays 06:00 UTC. ESO releases are roughly annual, so this is mostly a no-op.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  TITLE: 'Upstream ESO releases available'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compare against ESO listings
+        run: python3 .github/scripts/check_upstream.py "$RUNNER_TEMP/body.md"
+
+      - name: Open, update or close the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body_file="$RUNNER_TEMP/body.md"
+          existing=$(gh issue list --state open --json number,title \
+            --jq ".[] | select(.title==\"$TITLE\") | .number" | head -1)
+
+          if [ -s "$body_file" ]; then
+            if [ -n "$existing" ]; then
+              echo "updating issue #$existing"
+              gh issue edit "$existing" --body-file "$body_file"
+            else
+              echo "opening new issue"
+              gh issue create --title "$TITLE" --body-file "$body_file"
+            fi
+          elif [ -n "$existing" ]; then
+            echo "back up to date; closing issue #$existing"
+            gh issue close "$existing" --comment "All vendored ESO components are up to date again."
+          else
+            echo "up to date, nothing to do"
+          fi
