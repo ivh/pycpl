@@ -63,6 +63,25 @@ def _stale_message(patch: Path) -> str:
     )
 
 
+# Our README is the top-level one; ESO's is kept verbatim beside it. An upstream
+# swap that copies their README.md over ours would go unnoticed otherwise, since
+# nothing else reads it.
+README_MARKER = "# PyCPL with batteries included"
+
+
+def check_layout() -> bool:
+    readme = ROOT / "README.md"
+    if readme.exists() and README_MARKER not in readme.read_text():
+        print(
+            f"\npatches: README.md is not ours -- it lacks {README_MARKER!r}.\n"
+            "An upstream README has probably been copied over it. ESO's belongs in\n"
+            "README_orig.md; restore ours, which documents the local patches.\n",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -77,7 +96,7 @@ def main() -> int:
         return 0
 
     _require_patch_tool()
-    failed = False
+    failed = not check_layout()
 
     for patch in found:
         current = state(patch)

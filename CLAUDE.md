@@ -348,8 +348,20 @@ When ESO releases new versions:
 
 Apart from the renames above and `pycpl.cpp`, `src/` is pristine upstream — verify with a
 diff ignoring the copyright-year line, which upstream bumps on every file each release.
+The local bug fixes live in `patches/`, applied to `src/` by `setup.py` at build time, so
+they never enter the repo: run `python patches/apply.py --revert` before the swap and
+`--check` after it. A patch reporting `stale` means ESO touched that code — read their
+version, then rebase the patch or delete it. Never fuzz one; `patches/README.md` explains
+why and which divergences are allowed at all.
 
-**New CPL/HDRL C libraries**: PyCPL/PyHDRL state their minimum in their `README.md`
+**READMEs**: ours is `README.md` (it documents the patches), ESO's is kept verbatim as
+`README_orig.md`. An upstream tarball will want to write its own `README.md` — put it in
+`README_orig.md` instead. This is not a patch, because a rename has nothing to fail on at
+build time; instead `patches/apply.py` checks that `README.md` still carries our first
+line and fails the build if it does not.
+
+**New CPL/HDRL C libraries**: PyCPL/PyHDRL state their minimum in their own README
+(here: `README_orig.md`)
 (e.g. PyCPL 1.0.4 needs cpl >= 7.4). Update the two paths in `setup.py`
 (`_build_cpl`, `_build_hdrl`). Vendored trees are pruned to keep the repo small:
 drop `html/` + `ChangeLog` (CPL) and `tests/` + `doxygen/` (HDRL).
