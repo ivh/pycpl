@@ -1,0 +1,60 @@
+diff --git a/src/hdrlcore/image_bindings.cpp b/src/hdrlcore/image_bindings.cpp
+index f0b3edd..8a0a2b3 100644
+--- a/src/hdrlcore/image_bindings.cpp
++++ b/src/hdrlcore/image_bindings.cpp
+@@ -206,29 +206,47 @@ bind_hdrl_image(py::module& m)
+ 
+       .def(
+           "__getitem__",
+-          [](hdrl::core::Image& self, cpl_size ypos, cpl_size xpos) {
+-            if (ypos > self.get_height() || ypos < 0) {
++          [](hdrl::core::Image& self, std::pair<cpl_size, cpl_size> index) {
++            // Bound as two positional arguments this was unreachable: the
++            // subscript protocol passes one object, a tuple for img[y, x].
++            cpl_size ypos = index.first;
++            cpl_size xpos = index.second;
++            if (ypos < 0) {  // As in cpl.core.Image
++              ypos += self.get_height();
++            }
++            if (xpos < 0) {
++              xpos += self.get_width();
++            }
++            if (ypos >= self.get_height() || ypos < 0) {
+               throw py::index_error("Image height index out of range");
+             }
+-            if (xpos > self.get_width() || xpos < 0) {
++            if (xpos >= self.get_width() || xpos < 0) {
+               throw py::index_error("Image width index out of range");
+             }
+             return self.get_pixel(ypos, xpos);
+           },
+-          py::arg("ypos"), py::arg("xpos"))
++          py::arg("index"))
+       .def(
+           "__setitem__",
+-          [](hdrl::core::Image& self, cpl_size ypos, cpl_size xpos,
++          [](hdrl::core::Image& self, std::pair<cpl_size, cpl_size> index,
+              hdrl::core::Value v) {
+-            if (ypos > self.get_height() || ypos < 0) {
++            cpl_size ypos = index.first;
++            cpl_size xpos = index.second;
++            if (ypos < 0) {  // As in cpl.core.Image
++              ypos += self.get_height();
++            }
++            if (xpos < 0) {
++              xpos += self.get_width();
++            }
++            if (ypos >= self.get_height() || ypos < 0) {
+               throw py::index_error("Image index out of range");
+             }
+-            if (xpos > self.get_width() || xpos < 0) {
++            if (xpos >= self.get_width() || xpos < 0) {
+               throw py::index_error("Image width index out of range");
+             }
+             return self.set_pixel(ypos, xpos, v);
+           },
+-          py::arg("ypos"), py::arg("xpos"), py::arg("value"))
++          py::arg("index"), py::arg("value"))
+       .def("__deepcopy__",
+            [](hdrl::core::Image& self, py::dict /* unused */) {
+              return self.duplicate();

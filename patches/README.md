@@ -30,6 +30,8 @@ Every patch must have a ticket filed with ESO first; the reproducer lives in
 | `0004-cplcore-polynomial-fit-sampsym-buffer.patch` | `Polynomial.fit` releases a `new cpl_boolean[]` array with plain `delete` (undefined behaviour), and leaks it on the three throw paths in between. | ticket pending |
 | `0005-cplcore-vector-wrap-allocator.patch` | `Vector(sequence)` hands a `new double[]` buffer to `cpl_vector_wrap`, but `~Vector` calls `cpl_vector_delete`, which releases it with `cpl_free()`. Mismatched allocator, and a leak whenever the wrap fails. | ticket pending |
 | `0006-cpldrs-detector-noise-ring-buffer.patch` | `get_noise_ring` leaks its `new double[4]` whenever the CPL call fails, since the `delete[]` follows the throwing call. | `eso-bugs/7_...` (noted in the same report) |
+| `0007-hdrlcore-image-subscript.patch` | `hdrl.core.Image.__getitem__`/`__setitem__` are bound with two positional arguments, which the subscript protocol can never reach, so the class has no working item access. Rebound on a tuple index, which is the only reading of a two-index dunder. | `eso-bugs/1_hdrl_image_subscript.py` |
+| `0008-hdrlcore-image-array-refuse.patch` | `np.asarray(hdrl_image)` silently yields a 0-d `dtype=object` array. Refuses the conversion instead, pointing at `.image`/`.error`. Deliberately does *not* implement a real `__array__`: choosing which plane that returns is upstream's call, and guessing it would let code here disagree silently with ESO's build. | `eso-bugs/5_hdrl_image_asarray_silent.py` |
 
 The three memory-management fixes change no observable behaviour at all — they
 remove undefined behaviour and leaks — so they sit outside the (a)/(b) split

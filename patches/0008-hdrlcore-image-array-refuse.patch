@@ -1,0 +1,23 @@
+diff --git a/src/hdrlcore/image_bindings.cpp b/src/hdrlcore/image_bindings.cpp
+index f0b3edd..63954ae 100644
+--- a/src/hdrlcore/image_bindings.cpp
++++ b/src/hdrlcore/image_bindings.cpp
+@@ -82,6 +82,18 @@ bind_hdrl_image(py::module& m)
+           "size", &hdrl::core::Image::get_size,
+           "int : Total number of pixels in the image (width*height)")
+ 
++      // Without this numpy silently wraps the object in a 0-d array of
++      // dtype=object instead of failing, and the wrong thing travels on.
++      .def(
++          "__array__",
++          [](hdrl::core::Image& /* self */, py::args, py::kwargs) -> py::object {
++            throw py::type_error(
++                "hdrl.core.Image holds a data and an error plane and does not "
++                "convert to a single numpy array; use np.asarray(img.image) or "
++                "np.asarray(img.error)");
++          },
++          "Refuse conversion to a numpy array, see cpl.core.Image.as_array")
++
+       .def(
+           "extract",
+           [](hdrl::core::Image& self, hdrl::core::pycpl_window window) {

@@ -18,6 +18,9 @@ NOTE: all six defects are in the Python binding layer, not in the vendored C
 libraries, so they should reproduce identically against ESO's own PyCPL/PyHDRL
 wheels. Worth re-running there before filing, to preempt the question.
 
+NOTE: several of these no longer reproduce against our own wheels, which carry
+local fixes in patches/. Run them against ESO's PyCPL/PyHDRL to see the defect.
+
 Scripts
 -------
 1_hdrl_image_subscript.py            hdrl.core.Image.__getitem__/__setitem__ unreachable
