@@ -30,3 +30,9 @@ Scripts
 5_hdrl_image_asarray_silent.py       np.asarray() returns a 0-d object array, silently
 6_cpl_image_maskedarray_silent_nan.py  Image(MaskedArray) discards the mask as NaN (PyCPL)
 7_cpl_detector_zone_def_dangling.py  zone_def passed as a dangling pointer (PyCPL) -- file first
+8_cpl_polynomial_fit_leak.py         Polynomial.fit leaks sampsym; delete on new[] (PyCPL)
+9_cpl_vector_wrap_allocator.md       new[] buffer freed by CPL with free() (PyCPL, inspection only)
+
+Filing: 7 on its own (user-visible, has a workaround people need). 8 and 9 together
+with the get_noise_ring leak (detector.cpp:105) as one memory-management ticket --
+same defect class, same fix pass, none with a symptom on a normal build.
