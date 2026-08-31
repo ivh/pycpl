@@ -1,0 +1,37 @@
+diff --git a/src/cplcore/polynomial.cpp b/src/cplcore/polynomial.cpp
+index 869f3aa..298ffd8 100644
+--- a/src/cplcore/polynomial.cpp
++++ b/src/cplcore/polynomial.cpp
+@@ -221,6 +221,10 @@ Polynomial::fit(const cpl::core::Matrix& samppos,
+                 std::optional<std::vector<size>> mindeg)
+ {
+   cpl_boolean dimdeg_cpl = (cpl_boolean)dimdeg;
++  // Owns the buffer: the checks below and cpl_polynomial_fit itself all throw,
++  // and the raw array they used to skip past was released with the wrong form
++  // of delete in any case.
++  std::vector<cpl_boolean> sampsym_buf;
+   cpl_boolean* sampsym_ptr = nullptr;
+   // The rest of the checks (samppos matrix matching dimensionality x |fitvals|)
+   // are done inside cpl_polynomial_fit.
+@@ -233,10 +237,11 @@ Polynomial::fit(const cpl::core::Matrix& samppos,
+     }
+     // Create cpl_boolean array, because thats what CPL uses
+     size_t len = sampsym.value().size();
+-    sampsym_ptr = new cpl_boolean[len];
++    sampsym_buf.resize(len);
+     for (size_t i = 0; i < len; ++i) {
+-      sampsym_ptr[i] = (cpl_boolean)((bool)sampsym.value()[i]);
++      sampsym_buf[i] = (cpl_boolean)((bool)sampsym.value()[i]);
+     }
++    sampsym_ptr = sampsym_buf.data();
+   }
+   if (mindeg.has_value()) {
+     if (mindeg->size() !=
+@@ -255,7 +260,6 @@ Polynomial::fit(const cpl::core::Matrix& samppos,
+       cpl_polynomial_fit, m_interface, samppos.ptr(), sampsym_ptr,
+       fitsvals.ptr(), fitsigm.has_value() ? fitsigm->ptr() : nullptr,
+       dimdeg_cpl, mindeg.has_value() ? mindeg->data() : nullptr, maxdeg.data());
+-  delete sampsym_ptr;
+ }
+ 
+ std::pair<cpl::core::Vector, double>

@@ -1,0 +1,31 @@
+diff --git a/src/cplcore/vector.cpp b/src/cplcore/vector.cpp
+index cf0b739..2c8a426 100644
+--- a/src/cplcore/vector.cpp
++++ b/src/cplcore/vector.cpp
+@@ -19,6 +19,8 @@
+ #include <cstdio>
+ #include <cstring>
+ 
++#include <cpl_memory.h>
++
+ #include "cplcore/error.hpp"
+ 
+ namespace cpl
+@@ -27,10 +29,14 @@ namespace core
+ {
+ Vector::Vector(std::vector<double> values)
+ {
+-  double* new_data = new double[values.size()];
++  // cpl_vector_delete() releases the wrapped buffer with cpl_free(), so it has
++  // to come from cpl_malloc() and not from new[].
++  const size_t count = values.size();
++  double* new_data =
++      count > 0 ? static_cast<double*>(cpl_malloc(count * sizeof(double)))
++                : nullptr;
+   std::copy(values.begin(), values.end(), new_data);
+-  m_interface =
+-      Error::throw_errors_with(cpl_vector_wrap, values.size(), new_data);
++  m_interface = Error::throw_errors_with(cpl_vector_wrap, count, new_data);
+ }
+ 
+ Vector::Vector(cpl_vector* to_steal) noexcept : m_interface(to_steal) {}

@@ -1,0 +1,36 @@
+diff --git a/src/cpldrs/detector.cpp b/src/cpldrs/detector.cpp
+index b649ef6..bd233e6 100644
+--- a/src/cpldrs/detector.cpp
++++ b/src/cpldrs/detector.cpp
+@@ -86,23 +86,23 @@ get_noise_ring(const cpl::core::ImageBase& diff,
+                std::tuple<size, size, double, double> zone_def, size ron_hsize,
+                size ron_nsamp)
+ {
+-  double* zone_def_ptr;
+   // Note: the max value of long exceeds the max double value so potential
+   // data loss? On the other hand I'm unsure if anyone is going to make a
+   // image 9,223,372,036,854,775,807 wide or high
+-  zone_def_ptr = new double[4];
++  // Local storage: the heap buffer this used to allocate leaked on every
++  // failure, because the delete[] sat after a call that throws.
++  double zone_def_arr[4];
+   // Convert first two elements as they represent x,y coords
+-  zone_def_ptr[0] = (double)std::get<0>(zone_def) + 1;
+-  zone_def_ptr[1] = (double)std::get<1>(zone_def) + 1;
++  zone_def_arr[0] = (double)std::get<0>(zone_def) + 1;
++  zone_def_arr[1] = (double)std::get<1>(zone_def) + 1;
+   // but leave the others as they represent the ring radiuses
+-  zone_def_ptr[2] = std::get<2>(zone_def);
+-  zone_def_ptr[3] = std::get<3>(zone_def);
++  zone_def_arr[2] = std::get<2>(zone_def);
++  zone_def_arr[3] = std::get<3>(zone_def);
+ 
+   double noise, error;
+   cpl::core::Error::throw_errors_with(cpl_flux_get_noise_ring, diff.ptr(),
+-                                      zone_def_ptr, ron_hsize, ron_nsamp,
++                                      zone_def_arr, ron_hsize, ron_nsamp,
+                                       &noise, &error);  // Outputs
+-  delete[] zone_def_ptr;
+ 
+   return std::make_tuple(noise, error);
+ }
