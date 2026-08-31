@@ -102,7 +102,7 @@ resolution-markers = [
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "astropy-iers-data", version = "0.2026.8.24.0.24.29", source = { registry = "https://pypi.org/simple" } },
+    { name = "astropy-iers-data", version = "0.2026.8.31.0.57.9", source = { registry = "https://pypi.org/simple" } },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" } },
     { name = "packaging" },
     { name = "pyerfa" },
@@ -156,7 +156,7 @@ resolution-markers = [
     "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "astropy-iers-data", version = "0.2026.8.24.0.24.29", source = { registry = "https://pypi.org/simple" } },
+    { name = "astropy-iers-data", version = "0.2026.8.31.0.57.9", source = { registry = "https://pypi.org/simple" } },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "packaging" },
@@ -189,7 +189,7 @@ wheels = [
 
 [[package]]
 name = "astropy-iers-data"
-version = "0.2026.8.24.0.24.29"
+version = "0.2026.8.31.0.57.9"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -203,9 +203,9 @@ resolution-markers = [
     "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.10.*'",
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/4a/3b10cfce220b884451926fb440b8b528fb4dccdd6a81b8bd672072b8e5c7/astropy_iers_data-0.2026.8.24.0.24.29.tar.gz", hash = "sha256:8774d7454c2b82deae439a5ec63d563641e9d307e864b7dc84a542c8b6064521", size = 1945103, upload-time = "2026-08-24T00:25:08.378Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/5f/273407b9e1191f8d32f5a383107c5a1a89188cc5ccb9c015555b065bb015/astropy_iers_data-0.2026.8.31.0.57.9.tar.gz", hash = "sha256:4c67cfaec2235b761c11763479984ad4ab25b899b4f9dd66df90225d11a81bf6", size = 1945645, upload-time = "2026-08-31T00:57:51.579Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/13/afe433f358c77d0da3c9c10e2f999e146ce1f5aaa35903f8319cc4b836bf/astropy_iers_data-0.2026.8.24.0.24.29-py3-none-any.whl", hash = "sha256:4155ff5a60aafee76dd1ea233c39645b01256b6c436c3d443d0a2dde5197ebb3", size = 2000599, upload-time = "2026-08-24T00:25:06.943Z" },
+    { url = "https://files.pythonhosted.org/packages/91/18/31d7cd4e8ca5dfcf982e8937fd6069ccc4bee450002c9d9309be115bdd38/astropy_iers_data-0.2026.8.31.0.57.9-py3-none-any.whl", hash = "sha256:c6ac376d845846653b372a68ee5f24de234b92db9179bb82263b85efe4fe558a", size = 2001149, upload-time = "2026-08-31T00:57:50.291Z" },
 ]
 
 [[package]]
@@ -482,7 +482,7 @@ wheels = [
 
 [[package]]
 name = "imagesize"
-version = "2.0.0"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -496,9 +496,9 @@ resolution-markers = [
     "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.10.*'",
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/e6/7bf14eeb8f8b7251141944835abd42eb20a658d89084b7e1f3e5fe394090/imagesize-2.0.0.tar.gz", hash = "sha256:8e8358c4a05c304f1fccf7ff96f036e7243a189e9e42e90851993c558cfe9ee3", size = 1773045, upload-time = "2026-03-03T14:18:29.941Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/5e/513ff06670c84e7b9887c1fdf61b2d42b4f574a831f2f1d2222023049d8a/imagesize-2.0.1.tar.gz", hash = "sha256:b2ba6a4dea487a7ebcd53248d3476aca449d30db12a2dde5e0c5ca9624fd77e5", size = 1883774, upload-time = "2026-08-24T12:35:19.13Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/53/fb7122b71361a0d121b669dcf3d31244ef75badbbb724af388948de543e2/imagesize-2.0.0-py2.py3-none-any.whl", hash = "sha256:5667c5bbb57ab3f1fa4bc366f4fbc971db3d5ed011fd2715fd8001f782718d96", size = 9441, upload-time = "2026-03-03T14:18:27.892Z" },
+    { url = "https://files.pythonhosted.org/packages/01/f9/575c8d760eae1fc99651b7cc5efd96ad5379ca4d6b53750b0fb4fe983f34/imagesize-2.0.1-py3-none-any.whl", hash = "sha256:ea0c9a0384df69ed86a943a15cde37d0360b82491b3910dc2215e202e62b5b02", size = 14794, upload-time = "2026-08-24T12:35:12.548Z" },
 ]
 
 [[package]]
@@ -1089,7 +1089,7 @@ wheels = [
 
 [[package]]
 name = "pycpl"
-version = "1.0.4.post2"
+version = "1.0.4.post5"
 source = { editable = "." }
 dependencies = [
     { name = "astropy", version = "6.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -1681,7 +1681,7 @@ dependencies = [
     { name = "babel" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "docutils", version = "0.21.2", source = { registry = "https://pypi.org/simple" } },
-    { name = "imagesize", version = "2.0.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "imagesize", version = "2.0.1", source = { registry = "https://pypi.org/simple" } },
     { name = "jinja2" },
     { name = "packaging" },
     { name = "pygments" },
@@ -1714,7 +1714,7 @@ dependencies = [
     { name = "babel" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "imagesize", version = "2.0.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "imagesize", version = "2.0.1", source = { registry = "https://pypi.org/simple" } },
     { name = "jinja2" },
     { name = "packaging" },
     { name = "pygments" },
@@ -1750,7 +1750,7 @@ dependencies = [
     { name = "babel" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "docutils", version = "0.22.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "imagesize", version = "2.0.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "imagesize", version = "2.0.1", source = { registry = "https://pypi.org/simple" } },
     { name = "jinja2" },
     { name = "packaging" },
     { name = "pygments" },

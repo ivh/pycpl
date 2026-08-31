@@ -354,11 +354,12 @@ they never enter the repo: run `python patches/apply.py --revert` before the swa
 version, then rebase the patch or delete it. Never fuzz one; `patches/README.md` explains
 why and which divergences are allowed at all.
 
-**READMEs**: ours is `README.md` (it documents the patches), ESO's is kept verbatim as
-`README_orig.md`. An upstream tarball will want to write its own `README.md` — put it in
-`README_orig.md` instead. This is not a patch, because a rename has nothing to fail on at
-build time; instead `patches/apply.py` checks that `README.md` still carries our first
-line and fails the build if it does not.
+**READMEs and change logs**: ours are `README.md` and `CHANGELOG.md`, ESO's are kept
+verbatim as `README_orig.md` and `CHANGELOG_orig.md`. An upstream tarball will want to
+write its own `README.md`/`CHANGELOG.md` — put those in the `_orig` files instead. This is
+not a patch, because a rename has nothing to fail on at build time; instead
+`patches/apply.py` checks that `README.md` still carries our first line and fails the
+build if it does not.
 
 **New CPL/HDRL C libraries**: PyCPL/PyHDRL state their minimum in their own README
 (here: `README_orig.md`)
