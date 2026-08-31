@@ -117,12 +117,13 @@ def _fix_darwin_install_names(self, lib_dir, libraries):
 
 ```yaml
 matrix:
-  os: [ubuntu-latest, macos-15-intel, macos-latest]
+  os: [ubuntu-latest, ubuntu-22.04-arm, macos-latest, macos-15-intel]
 ```
 
 - `ubuntu-latest`: Linux x86_64 (manylinux_2_28)
-- `macos-15-intel`: Intel x86_64
+- `ubuntu-22.04-arm`: Linux aarch64 (manylinux_2_28)
 - `macos-latest`: Apple Silicon arm64 (native builds only)
+- `macos-15-intel`: Intel x86_64
 
 ### Python Versions
 
@@ -219,19 +220,40 @@ This allows pip/uv to find pycpl from our index while still using PyPI for depen
 
 ### Creating a New Release
 
-1. Push a tag:
+Before tagging:
+
+1. `python patches/apply.py --check` — every patch must report `pending` or `applied`,
+   never `stale`.
+2. Build once locally and smoke-test the result, since CI does not run the test suite:
    ```bash
-   git tag v1.0.3.post2
-   git push origin v1.0.3.post2
+   uv run --no-project --python 3.13 --with pybind11 --with setuptools --with cmake \
+     python setup.py build_ext --inplace
+   env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy \
+     python -c "import cpl; print(cpl.__file__, cpl.__version__)"
    ```
+   Check `cpl.__file__` — a stale `.so` elsewhere on the path silently passes otherwise.
+   Then `python patches/apply.py --revert`, and delete the in-place artifacts
+   (`rm -f *.dylib cpl.*.so src/cpl.*.so`).
+3. Bump `version` in `pyproject.toml` (`.postN`, N+1) and add a `CHANGELOG.md` entry.
+4. Commit, **push master, and confirm the push succeeded** before tagging. `origin/master`
+   moves on its own: the release workflow's `update_index` job commits there. Do not pipe
+   the push through anything — `git push | tail` returns the pipe's status, so a rejected
+   push looks like success and `&&` will not stop the tag from going out.
 
-2. Workflow automatically:
-   - Builds wheels
-   - Creates GitHub Release
-   - Updates package index
-   - Commits updated index to master
+Then:
 
-3. New version is immediately installable from GitHub Pages
+```bash
+git tag v1.0.4.post6
+git push origin v1.0.4.post6
+```
+
+The workflow builds wheels, creates the GitHub Release, regenerates the package index and
+commits it to master. The new version is installable from GitHub Pages as soon as it
+finishes (~45 min).
+
+If a tag ever goes out ahead of master, merge `origin/master` rather than rebasing: the
+tagged commit has to stay reachable, and retagging while the workflow runs against that
+tag is worse than a merge commit.
 
 ## Common Issues & Solutions
 
@@ -316,7 +338,21 @@ Editable installs (`uv sync` or `pip install -e`) don't work because the multi-s
 uv sync --no-install-project  # Sync dependencies only, skip building pycpl
 ```
 
-To test pycpl locally, install a pre-built wheel from the GitHub Pages index or build one with `cibuildwheel`.
+An in-place build does work, and is the fastest way to test a change to `src/` or
+`patches/` — the vendored C stack in `build/deps-<platform>/` is reused, so only the
+extension recompiles (a few minutes):
+
+```bash
+uv run --no-project --python 3.13 --with pybind11 --with setuptools --with cmake \
+  python setup.py build_ext --inplace
+env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c \
+  "import cpl; print(cpl.__file__)"
+```
+
+Always pin `PYTHONPATH` and print `cpl.__file__`: an installed or stale copy will
+otherwise be imported instead of the one just built. Clean up afterwards (see Development
+Notes). Alternatively install a pre-built wheel from the GitHub Pages index, or build one
+with `cibuildwheel`.
 
 ## Development Notes
 
@@ -325,8 +361,35 @@ To test pycpl locally, install a pre-built wheel from the GitHub Pages index or 
 - Check wheel contents: `python -m zipfile -l <wheel>.whl`
 - Check RPATH on Linux: `patchelf --print-rpath <module>.so`
 - Check install names on macOS: `otool -L <module>.so`
+- `build_ext --inplace` drops the extension plus ~16 MB of vendored dylibs in the repo
+  root (`_copy_vendored_libraries`). All gitignored, but clean them up: `MANIFEST.in` has
+  `global-include *.so *.so.* *.dylib`, so a *local* `uv build`/`sdist` would package
+  them. CI is unaffected — it builds from a clean checkout.
+- Never import `cpl` from inside the repo without checking `cpl.__file__`. Old in-place
+  builds linger and silently pass tests that should fail.
+
+## Local Patches and Bug Reports
+
+`src/` is pristine upstream; the local bug fixes live in `patches/`, applied to it by
+`setup.py` before every build, so the published wheels differ from ESO's by exactly that
+directory. `patches/README.md` carries the rule for what may be added: a patch must never
+change the result of a call that already succeeds against ESO's wheels — only errors,
+undefined behaviour and leaks are fair game — and each one needs a ticket filed upstream
+first.
+
+```bash
+python patches/apply.py --check | --apply | --revert
+```
+
+`eso-bugs/` holds a standalone reproducer per reported defect. Several no longer fire
+against our own wheels precisely because `patches/` fixes them: run them against ESO's
+build.
 
 ## Upgrading PyCPL/PyHDRL Sources
+
+`.github/workflows/check-upstream.yml` runs weekly and opens (or updates, or closes) an
+issue titled "Upstream ESO releases available" when a vendored component falls behind, so
+this normally starts from that issue rather than from watching the FTP site.
 
 When ESO releases new versions:
 
