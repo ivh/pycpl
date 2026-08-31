@@ -52,6 +52,8 @@ class CMakeBuildExt(build_ext):
                 + ", ".join(e.name for e in self.extensions)
             ) from e
 
+        self._apply_local_patches()
+
         # Build vendored dependencies first
         if not self.deps_built:
             self.build_dependencies()
@@ -59,6 +61,19 @@ class CMakeBuildExt(build_ext):
 
         for ext in self.extensions:
             self.build_extension(ext)
+
+    def _apply_local_patches(self) -> None:
+        """Apply the fixes in patches/ to the pristine upstream sources in src/.
+
+        Idempotent, and a hard failure when a patch no longer applies: that
+        means upstream changed the code, and shipping a half-applied patch
+        would silently diverge from the version number we publish under.
+        """
+        script = Path(__file__).parent.resolve() / "patches" / "apply.py"
+        if not script.exists():
+            print("WARNING: patches/apply.py missing, building unpatched sources")
+            return
+        subprocess.check_call([sys.executable, str(script), "--apply"])
 
     def _deps_dir(self) -> Path:
         """Directory for the vendored C libraries.

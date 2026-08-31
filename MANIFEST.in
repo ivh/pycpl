@@ -3,6 +3,7 @@ include pytest.ini
 global-include CMakeLists.txt *.cmake .clang-format
 global-include *.so *.so.* *.dylib
 recursive-include src *
+recursive-include patches *.patch *.py *.md
 recursive-include tests *.py *.sof *.fits
 recursive-include docs Makefile *.rst *.css *.svg *.ico *.png *.html *.py *.txt
 recursive-include vendor *

@@ -1,0 +1,52 @@
+diff --git a/src/cpldrs/detector.cpp b/src/cpldrs/detector.cpp
+index b649ef6..7b2e427 100644
+--- a/src/cpldrs/detector.cpp
++++ b/src/cpldrs/detector.cpp
+@@ -42,15 +42,16 @@ get_bias_window(const cpl::core::ImageBase& bias_image,
+                 std::optional<std::tuple<size, size, size, size>> zone_def,
+                 size ron_hsize, size ron_nsamp)
+ {
+-  const size* zone_def_ptr;
++  // The array must outlive the call below: declared inside the if-block its
++  // lifetime ends at the closing brace, leaving CPL to read dead stack.
++  size zone_def_arr[4];
++  const size* zone_def_ptr = nullptr;
+   if (zone_def.has_value()) {
+-    const size zone_def_arr[4] = {
+-        std::get<0>(zone_def.value()) + 1, std::get<1>(zone_def.value()) + 1,
+-        std::get<2>(zone_def.value()) + 1,
+-        std::get<3>(zone_def.value()) + 1};  // Convert to CPL coords
++    zone_def_arr[0] = std::get<0>(zone_def.value()) + 1;  // Convert to CPL coords
++    zone_def_arr[1] = std::get<1>(zone_def.value()) + 1;
++    zone_def_arr[2] = std::get<2>(zone_def.value()) + 1;
++    zone_def_arr[3] = std::get<3>(zone_def.value()) + 1;
+     zone_def_ptr = zone_def_arr;
+-  } else {
+-    zone_def_ptr = nullptr;
+   }
+   double bias, error;
+   cpl::core::Error::throw_errors_with(cpl_flux_get_bias_window,
+@@ -64,15 +65,16 @@ get_noise_window(const cpl::core::ImageBase& diff,
+                  std::optional<std::tuple<size, size, size, size>> zone_def,
+                  size ron_hsize, size ron_nsamp)
+ {
+-  const size* zone_def_ptr;
++  // The array must outlive the call below: declared inside the if-block its
++  // lifetime ends at the closing brace, leaving CPL to read dead stack.
++  size zone_def_arr[4];
++  const size* zone_def_ptr = nullptr;
+   if (zone_def.has_value()) {
+-    const size zone_def_arr[4] = {
+-        std::get<0>(zone_def.value()) + 1, std::get<1>(zone_def.value()) + 1,
+-        std::get<2>(zone_def.value()) + 1,
+-        std::get<3>(zone_def.value()) + 1};  // Convert to CPL coords
++    zone_def_arr[0] = std::get<0>(zone_def.value()) + 1;  // Convert to CPL coords
++    zone_def_arr[1] = std::get<1>(zone_def.value()) + 1;
++    zone_def_arr[2] = std::get<2>(zone_def.value()) + 1;
++    zone_def_arr[3] = std::get<3>(zone_def.value()) + 1;
+     zone_def_ptr = zone_def_arr;
+-  } else {
+-    zone_def_ptr = nullptr;
+   }
+   double noise, error;
+   cpl::core::Error::throw_errors_with(cpl_flux_get_noise_window, diff.ptr(),

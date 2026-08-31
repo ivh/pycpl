@@ -1,0 +1,40 @@
+diff --git a/src/hdrlcore/value.hpp b/src/hdrlcore/value.hpp
+index 223d135..7c6fd39 100644
+--- a/src/hdrlcore/value.hpp
++++ b/src/hdrlcore/value.hpp
+@@ -74,13 +74,31 @@ struct type_caster<hdrl::core::Value>
+ 
+   static handle cast(hdrl::core::Value src, return_value_policy, handle)
+   {
+-    py::module_ col = py::module_::import("collections");
+-    py::object ntup = col.attr("namedtuple")("Value", "data error invalid");
++    // Create the type once and register it in an importable module. A fresh
++    // class per call carries __module__ == "__main__" with no attribute to
++    // look up there, so pickle cannot resolve it and no Value can cross a
++    // process boundary. Deliberately leaked: a static py::object would be
++    // destroyed after interpreter finalisation.
++    static py::object* ntup = []() {
++      py::module_ mod;
++      try {
++        mod = py::module_::import("cpl.hdrl.core");
++      }
++      catch (py::error_already_set&) {
++        mod = py::module_::import("hdrl.core");
++      }
++      py::module_ col = py::module_::import("collections");
++      py::object type = col.attr("namedtuple")(
++          "Value", "data error invalid",
++          py::arg("module") = mod.attr("__name__"));
++      mod.attr("Value") = type;
++      return new py::object(type);
++    }();
+     py::object result;
+     if (std::isnan(src.v.data)) {
+-      result = ntup(py::none(), py::none(), true);
++      result = (*ntup)(py::none(), py::none(), true);
+     } else {
+-      result = ntup(src.v.data, src.v.error, false);
++      result = (*ntup)(src.v.data, src.v.error, false);
+     }
+     return result.release();
+   }
