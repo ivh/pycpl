@@ -26,3 +26,4 @@ Scripts
 4_hdrl_imagelist_indexing.py         no negative indexing + off-by-one bound check
 5_hdrl_image_asarray_silent.py       np.asarray() returns a 0-d object array, silently
 6_cpl_image_maskedarray_silent_nan.py  Image(MaskedArray) discards the mask as NaN (PyCPL)
+7_cpl_detector_zone_def_dangling.py  zone_def passed as a dangling pointer (PyCPL) -- file first
