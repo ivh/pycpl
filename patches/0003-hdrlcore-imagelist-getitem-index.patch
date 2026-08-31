@@ -1,0 +1,16 @@
+diff --git a/src/hdrlcore/imagelist_bindings.cpp b/src/hdrlcore/imagelist_bindings.cpp
+index ffb3aa6..5bd92d0 100644
+--- a/src/hdrlcore/imagelist_bindings.cpp
++++ b/src/hdrlcore/imagelist_bindings.cpp
+@@ -272,7 +272,10 @@ bind_hdrl_imagelist(py::module& m)
+         )pydoc")
+       .def("__getitem__",
+            [](hdrl::core::ImageList& self, int index) {
+-             if (index > self.get_size() || index < 0) {
++             if (index < 0) {  // As in cpl.core.ImageList
++               index += self.get_size();
++             }
++             if (index >= self.get_size() || index < 0) {
+                throw py::index_error("ImageList index out of range");
+              }
+              return self.get_at(index);

@@ -26,6 +26,7 @@ Every patch must have a ticket filed with ESO first; the reproducer lives in
 |---|---|---|
 | `0001-cpldrs-detector-zone-def-lifetime.patch` | `get_noise_window`/`get_bias_window` hand CPL a pointer to a block-scoped array, so `zone_def` never arrives and every window raises `IllegalInputError` from inside CPL. Undefined behaviour: another build may instead silently measure the wrong region. | `eso-bugs/7_cpl_detector_zone_def_dangling.py` |
 | `0002-hdrlcore-value-picklable.patch` | The `Value` namedtuple returned by every HDRL statistic is built fresh per call with `__module__ == "__main__"`, so it cannot be pickled and cannot be returned from a worker process. | `eso-bugs/3_hdrl_value_unpicklable.py` |
+| `0003-hdrlcore-imagelist-getitem-index.patch` | `hdrl.core.ImageList.__getitem__` rejects negative indices instead of wrapping, and bounds with `>` instead of `>=`. Its own `__setitem__`/`__delitem__` already bound correctly, and `cpl.core.ImageList` already wraps. | `eso-bugs/4_hdrl_imagelist_indexing.py` |
 
 ## Working with them
 
