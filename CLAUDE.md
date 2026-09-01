@@ -228,10 +228,21 @@ Before tagging:
    ```bash
    uv run --no-project --python 3.13 --with 'pybind11<3.1' --with setuptools --with cmake \
      python setup.py build_ext --inplace
-   env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy \
-     python -c "import cpl; print(cpl.__file__, cpl.__version__)"
+   env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c "
+import cpl, cpl.ui as ui
+print(cpl.__file__, cpl.__version__)
+p = ui.ParameterValue('p', 'd', 'c', 1); p.value = 2; assert p.value == 2
+b = ui.ParameterValue('b', 'd', 'c', True); b.value = False; assert b.value is False
+assert str(cpl.core.Property('K', 3).type) == 'Type.LONG'
+assert str(cpl.core.Property('K', 1.5).type) == 'Type.DOUBLE'
+print('round-trip ok')"
    ```
    Check `cpl.__file__` — a stale `.so` elsewhere on the path silently passes otherwise.
+   The round-trip assertions are not decoration: printing the version alone passes on a
+   build where every int and bool parameter is unusable and every numeric FITS keyword is
+   written as complex, which is exactly how v1.0.4.post5 and post6 shipped
+   (`eso-bugs/10_pybind11_31_variant_resolution.py`). Anything that changes the toolchain
+   — lifting a pybind11 pin above all — needs a *runtime* check; the compile succeeds.
    Then `python patches/apply.py --revert`, and delete the in-place artifacts
    (`rm -f *.dylib cpl.*.so src/cpl.*.so`).
 3. Bump `version` in `pyproject.toml` (`.postN`, N+1) and add a `CHANGELOG.md` entry.

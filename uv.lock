@@ -1089,7 +1089,7 @@ wheels = [
 
 [[package]]
 name = "pycpl"
-version = "1.0.4.post5"
+version = "1.0.4.post7"
 source = { editable = "." }
 dependencies = [
     { name = "astropy", version = "6.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
