@@ -1,5 +1,5 @@
 include README.md README_orig.md CHANGELOG.md CHANGELOG_orig.md
-include pytest.ini
+include pytest.ini conftest.py
 global-include CMakeLists.txt *.cmake .clang-format
 global-include *.so *.so.* *.dylib
 recursive-include src *

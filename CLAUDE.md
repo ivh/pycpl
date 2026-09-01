@@ -194,6 +194,13 @@ diff <(tar tzf pycpl-<v>.tar.gz | grep "^pycpl-<v>/tests/" | grep -v "/$" \
         | sed "s|pycpl-<v>/||" | sort) <(git ls-files tests/ | sort)
 ```
 
+Platform quirks in the vendored suites are handled from the root `conftest.py`, never by
+editing them: pytest loads it because `pytest.ini` makes the repo root the rootdir, even
+though the suites are invoked by absolute path from elsewhere. It currently xfails two
+`test_eval_2d` parameters on Linux aarch64, where `long double` is IEEE binary128 and
+upstream's expected values assume x86_64's 80-bit extended
+(`eso-bugs/11_test_polynomial_long_double_aarch64.md`).
+
 This gate exists because it was missing: v1.0.4.post5 and post6 shipped broken (see the
 pybind11 3.1 entry in `CHANGELOG.md`) past a release check that only printed
 `cpl.__version__`. The same suite fails 41 tests, errors 16 more and segfaults on those

@@ -33,6 +33,10 @@ Scripts
 8_cpl_polynomial_fit_leak.py         Polynomial.fit leaks sampsym; delete on new[] (PyCPL)
 9_cpl_vector_wrap_allocator.md       new[] buffer freed by CPL with free() (PyCPL, inspection only)
 10_pybind11_31_variant_resolution.py  pybind11 >= 3.1 breaks every variant-typed argument (PyCPL) -- file first
+11_test_polynomial_long_double_aarch64.md  their own test suite is not portable to aarch64 (PyCPL)
+
+NOTE: 11 is about ESO's test suite, not the bindings, and needs no reproducer script:
+run their tests/cplcore/test_polynomial.py on Linux aarch64.
 
 NOTE: 10 is build-environment dependent, unlike the rest. It needs a PyCPL built
 against pybind11 >= 3.1.0; a build with 3.0.x shows none of it. The defect is in
