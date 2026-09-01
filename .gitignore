@@ -99,6 +99,9 @@ texinfo.tex
 # FITS test files (can be large)
 *.fits
 *.fit
+# ...except upstream's own test data, which the suites load and CI needs (2.7 MB).
+# Without these the vendored tests error out on a fresh checkout while passing locally.
+!tests/**/*.fits
 
 # Backup files
 *.bak

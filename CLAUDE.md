@@ -182,6 +182,18 @@ C-level writes to stdout, so they only pass when the test venv is on `PATH` — 
 under cibuildwheel, but is not if you run the suite by hand with `PYTHONPATH`. Activate
 the venv rather than pointing `PYTHONPATH` at a wheel, or those 14 fail spuriously.
 
+**Both suites must be committed whole, test data included.** Root `.gitignore` has a
+blanket `*.fits`, which silently kept upstream's 2.7 MB of test images out of the repo:
+the suites passed locally, where an unpacked tarball had left the files lying around, and
+on a fresh CI checkout produced 15 failures and 79 errors. `.gitignore` now carries
+`!tests/**/*.fits`. Same trap as the `vendor/**/ChangeLog` one below; verify after any
+upgrade that the tree matches the tarball:
+
+```bash
+diff <(tar tzf pycpl-<v>.tar.gz | grep "^pycpl-<v>/tests/" | grep -v "/$" \
+        | sed "s|pycpl-<v>/||" | sort) <(git ls-files tests/ | sort)
+```
+
 This gate exists because it was missing: v1.0.4.post5 and post6 shipped broken (see the
 pybind11 3.1 entry in `CHANGELOG.md`) past a release check that only printed
 `cpl.__version__`. The same suite fails 41 tests, errors 16 more and segfaults on those
