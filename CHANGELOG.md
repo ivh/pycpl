@@ -8,6 +8,17 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 1.0.4.post6 are documented in the git tags and in the notes at the top of the README.
 
 
+## Unreleased
+
+### Added
+
+- CI now runs ESO's own test suites against every wheel before publishing it, via
+  cibuildwheel's `test-command`. PyHDRL's suite is vendored as `tests-hdrl/` (PyCPL's
+  was already in `tests/`, unrun). 1170 + 330 tests, ~30 s per wheel; all pass with the
+  eight local patches applied. `patches/README.md` records what to do when a patch and
+  an upstream test disagree.
+
+
 ## 1.0.4.post7
 
 ### Fixed

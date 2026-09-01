@@ -37,6 +37,29 @@ The three memory-management fixes change no observable behaviour at all — they
 remove undefined behaviour and leaks — so they sit outside the (a)/(b) split
 above and carry no divergence risk.
 
+## When a patch collides with an upstream test
+
+`tests/` and `tests-hdrl/` are ESO's own suites, pristine like `src/`, and CI runs
+both against every wheel. A patch that changes observable behaviour can therefore
+make an upstream test fail — and when it does, **the test change belongs in the same
+patch file**, not in a separate commit to the test tree. `apply.py` runs `patch -p1`
+from the repo root, so a patch may touch any path; keeping the two together means the
+pristine tree stays pristine, `--revert` restores both halves, and a `stale` report on
+the next upgrade covers the test as well as the code.
+
+Which way to change the test needs a moment's thought, because the two divergence
+directions above apply to it too:
+
+* The test asserts the buggy behaviour outright (it pins an exception we no longer
+  raise, say). Update the assertion, and say in the patch header that ESO's ticket
+  should update it the same way. This is the normal case.
+* The test fails for a reason the patch did not intend. That is the patch being wrong,
+  not the test. Fix the patch.
+
+Never delete or `skip` an upstream test to make a patch apply cleanly: a skipped test
+is a divergence nobody can see. As of PyHDRL 1.0.0 / PyCPL 1.0.4 no patch needs this —
+all 1170 + 330 tests pass with the eight patches applied.
+
 ## Working with them
 
 ```bash

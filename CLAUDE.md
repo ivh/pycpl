@@ -155,6 +155,38 @@ environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
 - Deployment target 11.0 for C++17 `<filesystem>` support
 - Native builds only (no cross-compilation) for faster builds
 
+### Tests in CI
+
+cibuildwheel installs each wheel into a fresh venv and runs ESO's own suites against it
+before the wheel is published:
+
+```toml
+test-requires = ["pytest", "pandas", "scipy"]
+test-command = "pytest -q --ignore={project}/tests/test_regression.py {project}/tests && pytest -q {project}/tests-hdrl"
+```
+
+`tests/` is PyCPL's suite, `tests-hdrl/` is PyHDRL's — both pristine upstream, kept like
+`src/` and replaced wholesale on an upgrade. 1170 + 330 tests, about 30 s per wheel.
+
+Three things about that command are deliberate:
+
+- **Absolute `{project}` paths, run from cibuildwheel's own temporary directory.** Never
+  `cd {project}`: the repo root holds `hdrl/`, which would shadow the installed package,
+  and an in-place `cpl.*.so` would be imported ahead of the wheel.
+- **Two invocations, not one.** Both trees carry a `test_image.py` and a
+  `test_image_list.py`; pytest cannot import two same-named test modules in one session.
+- **`test_regression.py` stays ignored**, as upstream's own `pytest.ini` does.
+
+Several tests (`test_dump_stdout` and friends) shell out to a bare `python` to capture
+C-level writes to stdout, so they only pass when the test venv is on `PATH` — which it is
+under cibuildwheel, but is not if you run the suite by hand with `PYTHONPATH`. Activate
+the venv rather than pointing `PYTHONPATH` at a wheel, or those 14 fail spuriously.
+
+This gate exists because it was missing: v1.0.4.post5 and post6 shipped broken (see the
+pybind11 3.1 entry in `CHANGELOG.md`) past a release check that only printed
+`cpl.__version__`. The same suite fails 41 tests, errors 16 more and segfaults on those
+wheels.
+
 ### Why Skip Repair Tools?
 
 - **auditwheel** (Linux) and **delocate** (macOS) normally bundle external libraries
@@ -406,7 +438,10 @@ When ESO releases new versions:
 
 **New PyCPL**: Replace `src/cplcore/`, `src/cpldfs/`, `src/cpldrs/`, `src/cplui/`
 
-**New PyHDRL**: Replace `src/hdrlcore/`, `src/hdrlfunc/`, `src/hdrldebug/`
+**New PyCPL**, also: replace `tests/` (their suite, vendored whole).
+
+**New PyHDRL**: Replace `src/hdrlcore/`, `src/hdrlfunc/`, `src/hdrldebug/`, and
+`tests-hdrl/` (their `tests/`, renamed only to keep it apart from PyCPL's)
   - Re-apply function renames to avoid linker conflicts with CPL:
 
 | Original | Renamed |

@@ -46,6 +46,13 @@ pyhdrl = "1.0.0"
 build = ["cp312-*", "cp313-*", "cp314-*"]
 skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
 build-verbosity = 1
+# ESO's own suites, vendored in tests/ (PyCPL) and tests-hdrl/ (PyHDRL), run against
+# the installed wheel -- never from the source tree, which would shadow hdrl/ and can
+# import a stale .so. Hence absolute paths and cibuildwheel's own temporary cwd.
+# Two invocations, not one: both trees carry a test_image.py and a test_image_list.py,
+# and pytest cannot import two same-named modules in one session.
+test-requires = ["pytest", "pandas", "scipy"]
+test-command = "pytest -q --ignore={project}/tests/test_regression.py {project}/tests && pytest -q {project}/tests-hdrl"
 
 [tool.cibuildwheel.linux]
 archs = ["native"]
