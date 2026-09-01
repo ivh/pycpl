@@ -277,7 +277,7 @@ Before tagging:
    never `stale`.
 2. Build once locally and smoke-test the result, since CI does not run the test suite:
    ```bash
-   uv run --no-project --python 3.13 --with 'pybind11<3.1' --with setuptools --with cmake \
+   uv run --no-project --python 3.14 --with 'pybind11<3.1' --with setuptools --with cmake \
      python setup.py build_ext --inplace
    env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c "
 import cpl, cpl.ui as ui
@@ -405,16 +405,25 @@ An in-place build does work, and is the fastest way to test a change to `src/` o
 extension recompiles (a few minutes):
 
 ```bash
-uv run --no-project --python 3.13 --with 'pybind11<3.1' --with setuptools --with cmake \
+uv run --no-project --python 3.14 --with 'pybind11<3.1' --with setuptools --with cmake \
   python setup.py build_ext --inplace
 env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c \
   "import cpl; print(cpl.__file__)"
 ```
 
 Always pin `PYTHONPATH` and print `cpl.__file__`: an installed or stale copy will
-otherwise be imported instead of the one just built. Clean up afterwards (see Development
-Notes). Alternatively install a pre-built wheel from the GitHub Pages index, or build one
-with `cibuildwheel`.
+otherwise be imported instead of the one just built.
+
+The interpreter version matters for more than the extension suffix: `build/deps-*` is
+keyed on `sysconfig.get_platform()`, and uv's macOS builds do not agree on that string —
+3.12 and 3.13 report `macosx-11.0-arm64`, 3.14 reports `macosx-26.0-arm64`. Switching
+the local build between them therefore rebuilds the whole C stack into a second tree
+(~15 min, ~51 MB) rather than reusing the first, and `MACOSX_DEPLOYMENT_TARGET` does not
+change it. Not a bug, and CI is unaffected — cibuildwheel's interpreters all report one
+tag per platform, so the stack is still built once there for cp312/cp313/cp314.
+
+Clean up afterwards (see Development Notes). Alternatively install a pre-built wheel from
+the GitHub Pages index, or build one with `cibuildwheel`.
 
 ## Development Notes
 
