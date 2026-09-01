@@ -1,6 +1,6 @@
 [project]
 name = "pycpl"
-version = "1.0.4.post6"
+version = "1.0.4.post7"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -34,7 +34,8 @@ Homepage = "http://www.eso.org/sci/software/pycpl"
 Documentation = "http://www.eso.org/sci/software/pycpl"
 Source = "https://ftp.eso.org/pub/dfs/pipelines/libraries/pycpl"
 [build-system]
-requires = ["setuptools>=70", "wheel", "pybind11>=2.8", "cmake"]
+# pybind11 3.1.0 broke std::variant resolution; see eso-bugs/10_*.py
+requires = ["setuptools>=70", "wheel", "pybind11>=2.8,<3.1", "cmake"]
 build-backend = "setuptools.build_meta"
 
 [tool.pycpl.upstream]

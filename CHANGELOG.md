@@ -8,6 +8,29 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 1.0.4.post6 are documented in the git tags and in the notes at the top of the README.
 
 
+## 1.0.4.post7
+
+### Fixed
+
+The build now pins `pybind11>=2.8,<3.1`. pybind11 3.1.0 (2026-08-06) changed the
+`std::variant` caster so that a Python `int` or `bool` fills the `double` slot, and
+PyCPL's variants declare `double`/`complex` first. Wheels built with it are badly
+broken:
+
+- every `int` and `bool` `cpl.ui.Parameter` raises "A parameter of type int does not
+  match the received type" on assignment, which takes PyEsoRex down in `load_recipe`
+  before any recipe can run;
+- every numeric `cpl.core.Property` silently became `DOUBLE_COMPLEX` — `Property("K", 3)`
+  held `(3+0j)`, `Property("K", 1.5)` held `(1.5+0j)`, `Property("K", True)` held
+  `(1+0j)` — and was written to FITS headers as a complex keyword.
+
+**v1.0.4.post5 and v1.0.4.post6 are affected and have been withdrawn from the package
+index**; post4 and earlier are not. Reported upstream, reproducer in
+`eso-bugs/10_pybind11_31_variant_resolution.py`. The pin is the stopgap: the real fix
+is to stop resolving these variants by declaration order, which has to happen in ESO's
+sources.
+
+
 ## 1.0.4.post6
 
 ### Fixed

@@ -226,7 +226,7 @@ Before tagging:
    never `stale`.
 2. Build once locally and smoke-test the result, since CI does not run the test suite:
    ```bash
-   uv run --no-project --python 3.13 --with pybind11 --with setuptools --with cmake \
+   uv run --no-project --python 3.13 --with 'pybind11<3.1' --with setuptools --with cmake \
      python setup.py build_ext --inplace
    env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy \
      python -c "import cpl; print(cpl.__file__, cpl.__version__)"
@@ -343,7 +343,7 @@ An in-place build does work, and is the fastest way to test a change to `src/` o
 extension recompiles (a few minutes):
 
 ```bash
-uv run --no-project --python 3.13 --with pybind11 --with setuptools --with cmake \
+uv run --no-project --python 3.13 --with 'pybind11<3.1' --with setuptools --with cmake \
   python setup.py build_ext --inplace
 env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c \
   "import cpl; print(cpl.__file__)"

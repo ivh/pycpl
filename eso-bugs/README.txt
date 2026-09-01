@@ -32,7 +32,14 @@ Scripts
 7_cpl_detector_zone_def_dangling.py  zone_def passed as a dangling pointer (PyCPL) -- file first
 8_cpl_polynomial_fit_leak.py         Polynomial.fit leaks sampsym; delete on new[] (PyCPL)
 9_cpl_vector_wrap_allocator.md       new[] buffer freed by CPL with free() (PyCPL, inspection only)
+10_pybind11_31_variant_resolution.py  pybind11 >= 3.1 breaks every variant-typed argument (PyCPL) -- file first
 
-Filing: 7 on its own (user-visible, has a workaround people need). 8 and 9 together
+NOTE: 10 is build-environment dependent, unlike the rest. It needs a PyCPL built
+against pybind11 >= 3.1.0; a build with 3.0.x shows none of it. The defect is in
+PyCPL's variant declarations, not in pybind11.
+
+Filing: 10 first and on its own -- it is a release blocker, it silently corrupts FITS
+headers, and pyproject.toml has no upper bound so every source build from 2026-08-06
+onwards is affected. 7 on its own (user-visible, has a workaround people need). 8 and 9 together
 with the get_noise_ring leak (detector.cpp:105) as one memory-management ticket --
 same defect class, same fix pass, none with a symptom on a normal build.
