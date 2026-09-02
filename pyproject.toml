@@ -4,7 +4,8 @@ version = "1.0.4.post7"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "GPL-3.0-or-later"}
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     {name = "European Southern Observatory, Australian Astronomical Optics Macquarie", email = "cpl-help@eso.org"}
 ]
@@ -35,7 +36,7 @@ Documentation = "http://www.eso.org/sci/software/pycpl"
 Source = "https://ftp.eso.org/pub/dfs/pipelines/libraries/pycpl"
 [build-system]
 # pybind11 3.1.0 broke std::variant resolution; see eso-bugs/10_*.py
-requires = ["setuptools>=70", "wheel", "pybind11>=2.8,<3.1", "cmake"]
+requires = ["setuptools>=77", "wheel", "pybind11>=2.8,<3.1", "cmake"]
 build-backend = "setuptools.build_meta"
 
 [tool.pycpl.upstream]
