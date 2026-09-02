@@ -18,6 +18,16 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
   eight local patches applied. `patches/README.md` records what to do when a patch and
   an upstream test disagree.
 
+### Changed
+
+- `license` is now a PEP 639 SPDX expression rather than the deprecated TOML table, so
+  the metadata carries `License-Expression: GPL-3.0-or-later` and its version moves from
+  2.2 to 2.4. Requires setuptools >= 77 to build; pip < 24.2 may not read the new
+  metadata version.
+- Local builds and `.python-version` default to Python 3.14. Verified there, and on
+  3.15.0rc2, that both suites pass and the round-trip smoke test holds; published wheels
+  are unchanged at cp312/cp313/cp314.
+
 
 ## 1.0.4.post7
 
