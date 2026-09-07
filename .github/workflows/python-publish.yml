@@ -37,7 +37,7 @@ jobs:
           echo "key=$v-$s" >> "$GITHUB_OUTPUT"
 
       - name: Cache vendored C libraries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/deps-*
           key: deps-${{ matrix.os }}-${{ steps.depskey.outputs.key }}
