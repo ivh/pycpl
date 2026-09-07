@@ -10,6 +10,13 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 
 ## Unreleased
 
+
+## 1.0.4.post8
+
+First release whose wheels were built and published under the new CI test gate; the
+extension itself is unchanged from post7, so this is a packaging and verification
+release rather than a functional one.
+
 ### Added
 
 - CI now runs ESO's own test suites against every wheel before publishing it, via
@@ -27,6 +34,10 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 - Local builds and `.python-version` default to Python 3.14. Verified there, and on
   3.15.0rc2, that both suites pass and the round-trip smoke test holds; published wheels
   are unchanged at cp312/cp313/cp314.
+- `actions/cache@v5` in the release workflow. GitHub removes Node.js 20 from the runners
+  on 2026-09-16; `cache@v4` was the last action still targeting it and was already being
+  forced onto Node 24. The first run after this change may miss the vendored-deps cache
+  and rebuild the C stack once.
 
 
 ## 1.0.4.post7
