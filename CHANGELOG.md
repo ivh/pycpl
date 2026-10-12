@@ -11,6 +11,22 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 ## Unreleased
 
 
+## 1.0.4.post9
+
+### Added
+
+- Wheels for Python 3.15 (cp315) on all four platforms.
+
+### Changed
+
+- Local builds and `.python-version` default to Python 3.15. Both suites (1170 + 330)
+  pass and the round-trip smoke test holds on 3.15.0.
+- The release workflow installs `cibuildwheel>=4.3.1`, the first version verified to
+  build cp315. The old requirement was unquoted, so the shell took `>=3.1.0` as a
+  redirect and the floor never applied.
+- `uv.lock` refreshed (`uv lock -U`).
+
+
 ## 1.0.4.post8
 
 First release whose wheels were built and published under the new CI test gate; the

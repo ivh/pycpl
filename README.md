@@ -10,10 +10,10 @@ including pre-built HDRL and its dependencies.
 
 A few things to note:
 * This a quick afternoon-project and there are no guarantees on how well it works. Pull requests welcome. All credit goes to the original library authors and to ClaudeCode for figuring out how to put together this package.
-* There is a GitHub workflow that builds pre-compiled wheels for Python 3.12 to 3.14 on Linux and MacOS, so installation should be very quick. Lower Python versions might work, but need build tools (cmake, autoconf, automake, libtool) and will trigger lengthy compilation when installing. No Windows support at all.
+* There is a GitHub workflow that builds pre-compiled wheels for Python 3.12 to 3.15 on Linux and MacOS, so installation should be very quick. Lower Python versions might work, but need build tools (cmake, autoconf, automake, libtool) and will trigger lengthy compilation when installing. No Windows support at all.
 * For technical details on the build system, see [CLAUDE.md](CLAUDE.md).
 * I recommend to use [uv](https://docs.astral.sh/uv/) for this package (and for everything else). But it should work just as well with `pip` or other Python tools.
-* To see if this package works on your machine run `uv run -p 3.14 --index https://ivh.github.io/pycpl/simple/ --with pycpl python -c "import cpl; import hdrl; print('Yay')"`
+* To see if this package works on your machine run `uv run -p 3.15 --index https://ivh.github.io/pycpl/simple/ --with pycpl python -c "import cpl; import hdrl; print('Yay')"`
 * For local development, use `uv sync --no-install-project` since editable installs don't work with the complex native build.
 * There is also the script [`pyhdrl_demo.py`](https://raw.githubusercontent.com/ivh/pycpl/refs/heads/master/pyhdrl_demo.py) that you can download alone, and simply run with `uv run pyhdrl_demo.py`. It should find this package and use it.
 * I chose the package version number the same as ESO's, but appending *.postNN* which means it's higher and takes precedence but will not interfere with their future versioning. If you want original pycpl from ESO, use only their index and/or install the fixed version number like *pycpl==1.0.3* .

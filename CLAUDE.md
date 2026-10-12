@@ -81,7 +81,7 @@ BUILD_WITH_INSTALL_RPATH TRUE
 **Vendored deps are shared across Python versions.** They are built into
 `build/deps-<platform>/` (keyed on `sysconfig.get_platform()`, not the interpreter) and
 guarded by a `.deps-complete` stamp listing the `vendor/` tree names. cibuildwheel builds
-cp312/cp313/cp314 in one job, so the C stack is built once instead of three times — on the
+cp312 to cp315 in one job, so the C stack is built once instead of four times — on the
 slow macos-15-intel runner that was ~14 min of the 54 min wall clock. Bump
 `DEPS_STAMP_SCHEMA` in `setup.py` if the dependency build changes in a way that old trees
 would not pick up. The workflow additionally caches `build/deps-*` between runs, keyed on
@@ -128,7 +128,7 @@ matrix:
 ### Python Versions
 
 ```toml
-build = ["cp312-*", "cp313-*", "cp314-*"]
+build = ["cp312-*", "cp313-*", "cp314-*", "cp315-*"]
 ```
 
 Wheels built for Python 3.12+. Package declares `requires-python = ">=3.9"` so older Python can build from source if needed.
@@ -277,7 +277,7 @@ Before tagging:
    never `stale`.
 2. Build once locally and smoke-test the result, since CI does not run the test suite:
    ```bash
-   uv run --no-project --python 3.14 --with 'pybind11<3.1' --with setuptools --with cmake \
+   uv run --no-project --python 3.15 --with 'pybind11<3.1' --with setuptools --with cmake \
      python setup.py build_ext --inplace
    env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c "
 import cpl, cpl.ui as ui
@@ -405,7 +405,7 @@ An in-place build does work, and is the fastest way to test a change to `src/` o
 extension recompiles (a few minutes):
 
 ```bash
-uv run --no-project --python 3.14 --with 'pybind11<3.1' --with setuptools --with cmake \
+uv run --no-project --python 3.15 --with 'pybind11<3.1' --with setuptools --with cmake \
   python setup.py build_ext --inplace
 env -u DYLD_LIBRARY_PATH PYTHONPATH=$PWD uv run --no-project --with numpy python -c \
   "import cpl; print(cpl.__file__)"
@@ -416,11 +416,11 @@ otherwise be imported instead of the one just built.
 
 The interpreter version matters for more than the extension suffix: `build/deps-*` is
 keyed on `sysconfig.get_platform()`, and uv's macOS builds do not agree on that string —
-3.12 and 3.13 report `macosx-11.0-arm64`, 3.14 reports `macosx-26.0-arm64`. Switching
+3.12, 3.13 and 3.15 report `macosx-11.0-arm64`, 3.14 reports `macosx-26.0-arm64`. Switching
 the local build between them therefore rebuilds the whole C stack into a second tree
 (~15 min, ~51 MB) rather than reusing the first, and `MACOSX_DEPLOYMENT_TARGET` does not
 change it. Not a bug, and CI is unaffected — cibuildwheel's interpreters all report one
-tag per platform, so the stack is still built once there for cp312/cp313/cp314.
+tag per platform, so the stack is still built once there for cp312 to cp315.
 
 Clean up afterwards (see Development Notes). Alternatively install a pre-built wheel from
 the GitHub Pages index, or build one with `cibuildwheel`.

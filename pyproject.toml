@@ -1,6 +1,6 @@
 [project]
 name = "pycpl"
-version = "1.0.4.post8"
+version = "1.0.4.post9"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -44,7 +44,7 @@ build-backend = "setuptools.build_meta"
 pyhdrl = "1.0.0"
 
 [tool.cibuildwheel]
-build = ["cp312-*", "cp313-*", "cp314-*"]
+build = ["cp312-*", "cp313-*", "cp314-*", "cp315-*"]
 skip = ["*-musllinux_*", "*-win32", "*-manylinux_i686"]
 build-verbosity = 1
 # ESO's own suites, vendored in tests/ (PyCPL) and tests-hdrl/ (PyHDRL), run against
