@@ -1,11 +1,25 @@
 [project]
 name = "pycpl"
-version = "1.0.4.post9"
+version = "1.0.4.post10"
 description = "Python language bindings for the ESO Common Pipeline Library C libraries"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"
-license-files = ["LICENSE"]
+# The wheels bundle compiled code from all of these, and ERFA/CFITSIO/pybind11 require
+# their notices in binary redistributions.
+license-files = [
+    "LICENSE",
+    "licenses/pybind11-LICENSE",
+    "vendor/cfitsio-4.6.2/licenses/License.txt",
+    "vendor/cpl-7.4/COPYING",
+    "vendor/erfa-2.0.1/LICENSE",
+    "vendor/fftw-3.3.10/COPYING",
+    "vendor/fftw-3.3.10/COPYRIGHT",
+    "vendor/gsl-2.8/COPYING",
+    "vendor/hdrl-1.6.0/COPYING",
+    "vendor/wcslib-8.2.2/COPYING",
+    "vendor/wcslib-8.2.2/COPYING.LESSER",
+]
 authors = [
     {name = "European Southern Observatory, Australian Astronomical Optics Macquarie", email = "cpl-help@eso.org"}
 ]

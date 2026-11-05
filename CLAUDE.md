@@ -218,7 +218,11 @@ wheels.
 
 ## Distribution via GitHub Pages
 
-Since PyPI rejected the package name as too similar to ESO's `pycpl`, we distribute wheels via a custom package index hosted on GitHub Pages.
+PyPI blocks the name `pycpl`, not because of ESO (who do not publish there) but because
+its confusable-name check equates `l`/`i`/`1` and so collides with the unrelated `pycpi`.
+A differently named PyPI package would not help either: ESO's `pyesorex` requires a
+distribution called `pycpl`, and it is not on PyPI itself. See `PyPI-package.md`. So we
+distribute wheels via a custom package index hosted on GitHub Pages.
 
 ### Package Index Structure
 

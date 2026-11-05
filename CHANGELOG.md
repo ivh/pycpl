@@ -11,6 +11,16 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 ## Unreleased
 
 
+## 1.0.4.post10
+
+### Fixed
+
+- Wheels now carry the licences of every bundled library (CPL, HDRL, CFITSIO, FFTW,
+  GSL, WCSLIB, ERFA, pybind11) in `.dist-info/licenses/`. Before, only the GPLv3 text
+  was included, though ERFA, CFITSIO and pybind11 require their notices in binary
+  redistributions.
+
+
 ## 1.0.4.post9
 
 ### Added
