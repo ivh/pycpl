@@ -21,7 +21,7 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
   taken. Applies to exact `ndarray`s of int32, float32, float64 and complex type,
   including transposed and sliced ones; int64 arrays, `MaskedArray` and plain
   sequences keep the element-wise path and their current results
-  (`patches/0009`, `eso-bugs/12_cpl_image_from_array_slow.py`).
+  (`patches/0009`, `eso-bugs/12_cpl_image_from_array_slow.py`, ESO ticket PIPE-13172).
 - `cpl.core.Image(complex ndarray)` works instead of raising `InvalidTypeError`.
 
 

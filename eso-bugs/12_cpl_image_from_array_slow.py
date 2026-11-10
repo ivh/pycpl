@@ -4,6 +4,8 @@
 # ///
 """PyCPL: cpl.core.Image(ndarray) never takes its memcpy path, and rejects complex arrays.
 
+Filed with ESO as PIPE-13172.
+
 image_from_arr() in cplcore/image_bindings.cpp guards the memcpy with "all strides
 == 1".  Buffer strides are in bytes, so for a 2-d array of any image pixel type that
 is never true, and every array is copied one pixel at a time through Python's

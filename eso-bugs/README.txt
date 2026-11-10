@@ -34,7 +34,7 @@ Scripts
 9_cpl_vector_wrap_allocator.md       new[] buffer freed by CPL with free() (PyCPL, inspection only)
 10_pybind11_31_variant_resolution.py  pybind11 >= 3.1 breaks every variant-typed argument (PyCPL) -- file first
 11_test_polynomial_long_double_aarch64.md  their own test suite is not portable to aarch64 (PyCPL)
-12_cpl_image_from_array_slow.py     Image(ndarray) never memcpys (strides compared to 1); complex arrays rejected (PyCPL)
+12_cpl_image_from_array_slow.py     Image(ndarray) never memcpys (strides compared to 1); complex arrays rejected (PyCPL, PIPE-13172)
 
 NOTE: 11 is about ESO's test suite, not the bindings, and needs no reproducer script:
 run their tests/cplcore/test_polynomial.py on Linux aarch64.
