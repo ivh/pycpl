@@ -11,6 +11,20 @@ Versions follow ESO's, with a `.postN` suffix for this packaging. Releases befor
 ## Unreleased
 
 
+## 1.0.4.post11
+
+### Fixed
+
+- `cpl.core.Image(ndarray)` copies the pixel buffer in one go instead of pixel by
+  pixel through the Python iterator: 2048 × 2048 float32 takes 0.3 ms instead of
+  140 ms. Upstream's guard compared byte strides to 1, so its memcpy branch was never
+  taken. Applies to exact `ndarray`s of int32, float32, float64 and complex type,
+  including transposed and sliced ones; int64 arrays, `MaskedArray` and plain
+  sequences keep the element-wise path and their current results
+  (`patches/0009`, `eso-bugs/12_cpl_image_from_array_slow.py`).
+- `cpl.core.Image(complex ndarray)` works instead of raising `InvalidTypeError`.
+
+
 ## 1.0.4.post10
 
 ### Fixed

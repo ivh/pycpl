@@ -1,0 +1,79 @@
+diff --git a/src/cplcore/image_bindings.cpp b/src/cplcore/image_bindings.cpp
+index e1a08db..bc30f31 100644
+--- a/src/cplcore/image_bindings.cpp
++++ b/src/cplcore/image_bindings.cpp
+@@ -194,21 +194,38 @@ image_from_arr(py::iterable obj)
+   std::optional<cpl_type> inferred_type =
+       cpl::pystruct_type_to_cpl(info.format);
+ 
+-  if (
++  // Only the pixel types an image can hold: an int64 array has to keep going
++  // through the element-wise path below, which narrows it to INT and range
++  // checks every value.
++  const bool is_image_type =
++      inferred_type == CPL_TYPE_INT || inferred_type == CPL_TYPE_FLOAT ||
++      inferred_type == CPL_TYPE_DOUBLE ||
++      inferred_type == CPL_TYPE_FLOAT_COMPLEX ||
++      inferred_type == CPL_TYPE_DOUBLE_COMPLEX;
++  // Exact ndarrays only: iterating a subclass need not yield what its buffer
++  // holds (a MaskedArray yields NaN for masked elements).
++  const bool is_plain_ndarray = py::type::of(obj).is(
++      py::module::import("numpy").attr("ndarray"));
++
++  // Not py::array, whose default constructor makes an empty array, not null.
++  py::object contiguous;
++  if (is_image_type && is_plain_ndarray &&
+       // All padding/alignment is native c-style:
+       cpl::pystruct_type_is_native(info.format) &&
+-      // Type is a good CPL type:
+-      inferred_type.has_value() && inferred_type != CPL_TYPE_STRING &&
+-      std::all_of(info.strides.begin(), info.strides.end(),
+-                  [](ssize_t stride) -> bool {
+-                    // All strides are 1.
+-                    return 1 == stride;
+-                  })) {
+-    assert(info.itemsize ==
+-           static_cast<ssize_t>(cpl_type_get_sizeof(*inferred_type)));
++      info.itemsize ==
++          static_cast<ssize_t>(cpl_type_get_sizeof(*inferred_type))) {
++    // Returns the array itself if it is already C-contiguous, a copy if it is
++    // transposed, sliced or otherwise strided.
++    contiguous = py::array::ensure(input_arr, py::array::c_style);
++    if (!contiguous) {
++      PyErr_Clear();
++    }
++  }
++
++  if (contiguous) {
+     // The numpy storage exactly matches C-style storage
+     return cpl::core::ImageBase::make_image(width, height, *inferred_type,
+-                                            info.ptr);
++                                            py::array(contiguous).request().ptr);
+   } else {
+     // The numpy storage format doesn't match
+     // This part of the code will iterate through each element
+diff --git a/src/cplcore/type_bindings.cpp b/src/cplcore/type_bindings.cpp
+index 2e7ddb5..fe8bf35 100644
+--- a/src/cplcore/type_bindings.cpp
++++ b/src/cplcore/type_bindings.cpp
+@@ -100,6 +100,10 @@ pystruct_type_to_cpl(std::string_view orig_format_descriptor)
+   } else if (format_descriptor == "d") {
+     cpl_type ty = CPL_TYPE_DOUBLE;
+     return ty;
++  } else if (format_descriptor == "Zf") {
++    return CPL_TYPE_FLOAT_COMPLEX;
++  } else if (format_descriptor == "Zd") {
++    return CPL_TYPE_DOUBLE_COMPLEX;
+   } else if (format_descriptor == "s") {
+     return CPL_TYPE_STRING;
+   } else if (format_descriptor == "p") {
+@@ -126,7 +130,8 @@ pystruct_type_is_native(std::string_view format_descriptor)
+     return false;
+   } else {
+     // Should only be 1 member of this struct packing declaration.
+-    return format_descriptor.size() == 1;
++    return format_descriptor.size() == 1 || format_descriptor == "Zf" ||
++           format_descriptor == "Zd";
+   }
+ }
+ 

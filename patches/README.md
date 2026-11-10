@@ -32,6 +32,7 @@ Every patch must have a ticket filed with ESO first; the reproducer lives in
 | `0006-cpldrs-detector-noise-ring-buffer.patch` | `get_noise_ring` leaks its `new double[4]` whenever the CPL call fails, since the `delete[]` follows the throwing call. | `eso-bugs/7_...` (noted in the same report) |
 | `0007-hdrlcore-image-subscript.patch` | `hdrl.core.Image.__getitem__`/`__setitem__` are bound with two positional arguments, which the subscript protocol can never reach, so the class has no working item access. Rebound on a tuple index, which is the only reading of a two-index dunder. | `eso-bugs/1_hdrl_image_subscript.py` |
 | `0008-hdrlcore-image-array-refuse.patch` | `np.asarray(hdrl_image)` silently yields a 0-d `dtype=object` array. Refuses the conversion instead, pointing at `.image`/`.error`. Deliberately does *not* implement a real `__array__`: choosing which plane that returns is upstream's call, and guessing it would let code here disagree silently with ESO's build. | `eso-bugs/5_hdrl_image_asarray_silent.py` |
+| `0009-cplcore-image-from-array-memcpy.patch` | `Image(ndarray)` guards its memcpy with "all strides == 1", but strides are in bytes, so every array is copied pixel by pixel through the Python iterator (140 ms for 2k × 2k instead of < 1 ms). Also `Image(complex ndarray)` raises `InvalidTypeError` because the `Zf`/`Zd` format codes are unknown. The memcpy is taken only for exact `ndarray`s of an image pixel type, made C-contiguous first; int64 arrays, subclasses (`MaskedArray`) and plain sequences stay on the element-wise path, whose results differ. Bit-identical to that path for every call that already succeeded. | `eso-bugs/12_cpl_image_from_array_slow.py` |
 
 The three memory-management fixes change no observable behaviour at all — they
 remove undefined behaviour and leaks — so they sit outside the (a)/(b) split
@@ -58,7 +59,7 @@ directions above apply to it too:
 
 Never delete or `skip` an upstream test to make a patch apply cleanly: a skipped test
 is a divergence nobody can see. As of PyHDRL 1.0.0 / PyCPL 1.0.4 no patch needs this —
-all 1170 + 330 tests pass with the eight patches applied.
+all 1170 + 330 tests pass with the nine patches applied.
 
 ## Working with them
 
